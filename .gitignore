@@ -1,0 +1,6 @@
+core/
+bin/
+obj/
+.vs/
+*.user
+dist/

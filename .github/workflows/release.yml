@@ -1,0 +1,47 @@
+name: Release
+
+# Tag vX.Y.Z → Release build of the app, zipped and attached to the release.
+# Code signing (Authenticode) and MSIX packaging come with the app project.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # hashFiles() isn't available in a job's `if`, so a cheap Linux job
+  # checks for the app project first.
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      project: ${{ steps.check.outputs.project }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: if compgen -G "*.sln" > /dev/null; then echo project=true; else echo project=false; fi >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: detect
+    if: needs.detect.outputs.project == 'true'
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/fetch-core.sh
+        env:
+          GH_TOKEN: ${{ secrets.CORE_RELEASES_TOKEN }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet publish -c Release -r win-x64 -o dist/Veltrio
+      - run: cp core/*.dll dist/Veltrio/
+      - run: 7z a -tzip "Veltrio-$GITHUB_REF_NAME-win-x64.zip" ./dist/Veltrio/*
+      - name: Publish
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" Veltrio-*.zip --title "$GITHUB_REF_NAME" --generate-notes
