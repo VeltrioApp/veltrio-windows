@@ -21,7 +21,7 @@ jobs:
       - name: Fetch veltrio-core
         run: ./scripts/fetch-core.sh
         env:
-          GH_TOKEN: ${{ secrets.CORE_RELEASES_TOKEN }}
+          GH_TOKEN: ${{ secrets.CORE_RELEASES_TOKEN || github.token }}
       # Everything below switches on once the solution is committed.
       - uses: actions/setup-dotnet@v4
         if: hashFiles('*.sln') != ''
