@@ -36,9 +36,8 @@ jobs:
           GH_TOKEN: ${{ secrets.CORE_RELEASES_TOKEN }}
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
-      - run: dotnet publish -c Release -r win-x64 -o dist/Veltrio
-      - run: cp core/*.dll dist/Veltrio/
+          dotnet-version: 10.0.x
+      - run: dotnet publish src/Veltrio/Veltrio.csproj -c Release -p:Platform=x64 -o dist/Veltrio
       - run: 7z a -tzip "Veltrio-$GITHUB_REF_NAME-win-x64.zip" ./dist/Veltrio/*
       - name: Publish
         if: startsWith(github.ref, 'refs/tags/')

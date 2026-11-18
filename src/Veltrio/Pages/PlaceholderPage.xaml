@@ -1,0 +1,12 @@
+<Page
+    x:Class="Veltrio.Pages.PlaceholderPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel Padding="48,24,48,48" Spacing="12">
+        <TextBlock Text="COMING NEXT" Style="{StaticResource VeltrioEyebrow}" />
+        <TextBlock x:Name="TitleText" Style="{StaticResource VeltrioPageTitle}" />
+        <Border Height="1" Background="{StaticResource VeltrioHairlineBrush}" />
+        <TextBlock Opacity="0.6" TextWrapping="Wrap" MaxWidth="560"
+                   Text="This section is being ported from the macOS app." />
+    </StackPanel>
+</Page>
