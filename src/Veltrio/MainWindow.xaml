@@ -3,41 +3,67 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Veltrio">
-    <Window.SystemBackdrop>
-        <MicaBackdrop />
-    </Window.SystemBackdrop>
 
-    <Grid>
+    <Grid Background="{StaticResource VeltrioBackgroundBrush}">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Content extends into the title bar; this strip is the drag area. -->
-        <Grid x:Name="TitleBar" Height="40" Padding="16,0,0,0">
-            <TextBlock Text="VELTRIO" VerticalAlignment="Center"
-                       Style="{StaticResource VeltrioEyebrow}" />
-        </Grid>
+        <!-- Content extends into the title bar; this strip is the drag
+             area under the caption buttons. -->
+        <Grid x:Name="TitleBar" Height="32" Background="Transparent" />
 
-        <!-- Top navigation, like the macOS app: sections as text tabs,
-             search on the right, settings at the end. -->
-        <NavigationView x:Name="Nav" Grid.Row="1"
-                        PaneDisplayMode="Top"
-                        IsBackButtonVisible="Auto"
-                        IsBackEnabled="{x:Bind ContentFrame.CanGoBack, Mode=OneWay}"
-                        BackRequested="OnBackRequested"
-                        SelectionChanged="OnSelectionChanged">
-            <NavigationView.MenuItems>
-                <NavigationViewItem Content="Home" Tag="home" Icon="Home" />
-                <NavigationViewItem Content="Collection" Tag="library" Icon="Library" />
-                <NavigationViewItem Content="Live" Tag="live" Icon="Video" />
-                <NavigationViewItem Content="Sources" Tag="sources" Icon="AllApps" />
-            </NavigationView.MenuItems>
-            <NavigationView.AutoSuggestBox>
-                <AutoSuggestBox PlaceholderText="Movies, series…" QueryIcon="Find" Width="260"
-                                QuerySubmitted="OnSearchSubmitted" />
-            </NavigationView.AutoSuggestBox>
-            <Frame x:Name="ContentFrame" />
-        </NavigationView>
+        <!-- The editorial nav from macOS: serif wordmark, numbered text
+             tabs with an amber underline, a framed search trigger. -->
+        <Grid x:Name="NavBar" Grid.Row="1" Height="64" Padding="48,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button Style="{StaticResource VeltrioLinkButton}" Click="OnWordmarkClick" VerticalAlignment="Center"
+                    IsTabStop="False" UseSystemFocusVisuals="False">
+                <TextBlock Text="Veltrio" FontFamily="{StaticResource VeltrioSerif}" FontSize="26"
+                           FontWeight="Bold" CharacterSpacing="-15"
+                           Foreground="{StaticResource VeltrioTextPrimaryBrush}" />
+            </Button>
+
+            <StackPanel x:Name="Tabs" Grid.Column="1" Orientation="Horizontal" Spacing="32"
+                        VerticalAlignment="Center" />
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="14"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button x:Name="SearchButton" Style="{StaticResource VeltrioGhostButton}" Width="220"
+                        Padding="14,9" BorderBrush="{StaticResource VeltrioBorderStrongBrush}"
+                        Foreground="{StaticResource VeltrioTextSecondaryBrush}"
+                        HorizontalContentAlignment="Stretch" Click="OnSearchClick"
+                        ToolTipService.ToolTip="Rechercher (Ctrl+K)">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="K" />
+                    </Button.KeyboardAccelerators>
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE721;" FontSize="11" />
+                            <TextBlock Text="RECHERCHER" />
+                        </StackPanel>
+                        <Border HorizontalAlignment="Right" BorderBrush="{StaticResource VeltrioBorderBrush}"
+                                BorderThickness="1" Padding="5,1">
+                            <TextBlock Text="CTRL K" FontFamily="{StaticResource VeltrioMono}" FontSize="9"
+                                       CharacterSpacing="0" Foreground="{StaticResource VeltrioTextQuaternaryBrush}" />
+                        </Border>
+                    </Grid>
+                </Button>
+                <Button Style="{StaticResource VeltrioLinkButton}" Click="OnSettingsClick"
+                        ToolTipService.ToolTip="Réglages" AutomationProperties.Name="Réglages" Padding="6">
+                    <FontIcon Glyph="&#xE713;" FontSize="16" />
+                </Button>
+            </StackPanel>
+        </Grid>
+        <Border x:Name="NavRule" Grid.Row="1" VerticalAlignment="Bottom" Style="{StaticResource VeltrioRule}" />
+
+        <Frame x:Name="ContentFrame" Grid.Row="2" />
     </Grid>
 </Window>

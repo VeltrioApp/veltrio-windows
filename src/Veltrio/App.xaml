@@ -7,9 +7,11 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <ResourceDictionary Source="Themes/Templates.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Same tungsten amber as the macOS app. -->
+            <!-- Same cinema-editorial tokens as the macOS Theme.swift:
+                 true-black canvas, one tungsten amber, hairlines. -->
             <Color x:Key="SystemAccentColor">#E6A84B</Color>
             <Color x:Key="SystemAccentColorLight1">#EDB966</Color>
             <Color x:Key="SystemAccentColorLight2">#F2C985</Color>
@@ -17,26 +19,78 @@
             <Color x:Key="SystemAccentColorDark1">#C98F37</Color>
             <Color x:Key="SystemAccentColorDark2">#A87628</Color>
             <Color x:Key="SystemAccentColorDark3">#865D1D</Color>
-            <SolidColorBrush x:Key="VeltrioAccentBrush" Color="#E6A84B" />
-            <SolidColorBrush x:Key="VeltrioHairlineBrush" Color="#1FFFFFFF" />
 
+            <SolidColorBrush x:Key="VeltrioBackgroundBrush" Color="#000000" />
+            <SolidColorBrush x:Key="VeltrioBackgroundAltBrush" Color="#0A0A0A" />
+            <SolidColorBrush x:Key="VeltrioSurfaceBrush" Color="#111111" />
+            <SolidColorBrush x:Key="VeltrioSurfaceHoverBrush" Color="#1A1A1A" />
+            <SolidColorBrush x:Key="VeltrioSurfaceElevatedBrush" Color="#1F1F1F" />
+            <SolidColorBrush x:Key="VeltrioBorderBrush" Color="#14FFFFFF" />
+            <SolidColorBrush x:Key="VeltrioBorderStrongBrush" Color="#38FFFFFF" />
+            <SolidColorBrush x:Key="VeltrioHairlineBrush" Color="#1FFFFFFF" />
+            <SolidColorBrush x:Key="VeltrioTextPrimaryBrush" Color="#FAF7F2" />
+            <SolidColorBrush x:Key="VeltrioTextSecondaryBrush" Color="#ADFFFFFF" />
+            <SolidColorBrush x:Key="VeltrioTextTertiaryBrush" Color="#6BFFFFFF" />
+            <SolidColorBrush x:Key="VeltrioTextQuaternaryBrush" Color="#42FFFFFF" />
+            <SolidColorBrush x:Key="VeltrioAccentBrush" Color="#E6A84B" />
+            <SolidColorBrush x:Key="VeltrioAccentHoverBrush" Color="#F2BB64" />
+            <SolidColorBrush x:Key="VeltrioAccentSoftBrush" Color="#24E6A84B" />
+            <SolidColorBrush x:Key="VeltrioOnAccentBrush" Color="#1A1206" />
+            <SolidColorBrush x:Key="VeltrioDangerBrush" Color="#E5484D" />
+            <SolidColorBrush x:Key="VeltrioSuccessBrush" Color="#4F9E5F" />
+
+            <!-- Serif for titles (New York on macOS), mono for counts. -->
             <FontFamily x:Key="VeltrioSerif">Georgia</FontFamily>
+            <FontFamily x:Key="VeltrioMono">Cascadia Mono, Consolas</FontFamily>
+            <Thickness x:Key="VeltrioPagePadding">48,32,48,60</Thickness>
 
             <Style x:Key="VeltrioEyebrow" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="11" />
+                <Setter Property="FontSize" Value="10" />
                 <Setter Property="FontWeight" Value="Bold" />
                 <Setter Property="CharacterSpacing" Value="240" />
+                <Setter Property="Foreground" Value="{StaticResource VeltrioTextTertiaryBrush}" />
+            </Style>
+            <Style x:Key="VeltrioAccentEyebrow" TargetType="TextBlock" BasedOn="{StaticResource VeltrioEyebrow}">
+                <Setter Property="CharacterSpacing" Value="280" />
                 <Setter Property="Foreground" Value="{StaticResource VeltrioAccentBrush}" />
             </Style>
             <Style x:Key="VeltrioPageTitle" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource VeltrioSerif}" />
                 <Setter Property="FontSize" Value="44" />
                 <Setter Property="FontWeight" Value="Bold" />
+                <Setter Property="CharacterSpacing" Value="-20" />
+                <Setter Property="Foreground" Value="{StaticResource VeltrioTextPrimaryBrush}" />
+                <Setter Property="TextWrapping" Value="Wrap" />
             </Style>
             <Style x:Key="VeltrioSectionTitle" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource VeltrioSerif}" />
-                <Setter Property="FontSize" Value="22" />
+                <Setter Property="FontSize" Value="24" />
                 <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="CharacterSpacing" Value="-10" />
+                <Setter Property="Foreground" Value="{StaticResource VeltrioTextPrimaryBrush}" />
+            </Style>
+            <Style x:Key="VeltrioNumeral" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource VeltrioMono}" />
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="CharacterSpacing" Value="120" />
+                <Setter Property="Foreground" Value="{StaticResource VeltrioAccentBrush}" />
+            </Style>
+            <Style x:Key="VeltrioBody" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="LineHeight" Value="21" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="Foreground" Value="{StaticResource VeltrioTextSecondaryBrush}" />
+            </Style>
+            <Style x:Key="VeltrioCaption" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource VeltrioMono}" />
+                <Setter Property="FontSize" Value="10" />
+                <Setter Property="Foreground" Value="{StaticResource VeltrioTextTertiaryBrush}" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            </Style>
+            <Style x:Key="VeltrioRule" TargetType="Border">
+                <Setter Property="Height" Value="1" />
+                <Setter Property="Background" Value="{StaticResource VeltrioBorderBrush}" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

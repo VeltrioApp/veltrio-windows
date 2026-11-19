@@ -1,10 +1,29 @@
 # Veltrio for Windows
 
 WinUI 3 (Windows App SDK 2.6) + C# / .NET 10, on top of
-[veltrio-core](https://github.com/VeltrioApp/veltrio-core). Early: the
-shell (top navigation, search box) and a Home page showing Cinemeta's
-catalogs through the Rust core. The other sections are being ported
-from the macOS app.
+[veltrio-core](https://github.com/VeltrioApp/veltrio-core), ported from
+the macOS app: same editorial look (true black, tungsten amber, serif
+titles), French UI.
+
+- **Accueil**: hero, Continue watching, one numbered row per catalog of
+  the enabled addons, "See all" grid.
+- **Title page**: details and credits; seasons and episodes for a series;
+  streams from every addon, ranked like macOS, filterable by quality and
+  source.
+- **Recherche**: across the addons' searchable catalogs and the IPTV channels.
+- **Collection**: saved and started titles, filters, watched / remove.
+- **Direct**: M3U playlists, channels by group.
+- **Sources**: install from URL, enable, reorder, remove, suggestions;
+  IPTV playlists.
+- **Player** (provisional): Windows' MediaPlayerElement, resume and
+  progress, torrents through the core's engine. Plays MP4 / HLS / most
+  H.264 MKV; the libmpv vs FFmpegInteropX decision is still open.
+
+Not yet on Windows: Xtream Codes providers, debrid, media servers
+(Jellyfin/Plex/Emby), Trakt/SIMKL, EPG, subtitles, downloads, casting —
+their clients live in Swift on macOS, not in the core.
+
+Data lives in `%LOCALAPPDATA%\Veltrio` (JSON, same shapes as macOS).
 
 Unpackaged and self-contained for now (no MSIX, no separate Windows App
 SDK runtime install).
@@ -21,6 +40,21 @@ dotnet build Veltrio.Windows.sln -c Debug -p:Platform=x64
 
 Or open `Veltrio.Windows.sln` in Visual Studio 2022+ (with the WinUI
 workload) and run.
+
+## Testing from a Mac
+
+Wine / CrossOver can't run it: Windows App SDK calls an NT API Wine
+doesn't implement (`NtCreateWaitCompletionPacket`) and aborts at
+startup. A Parallels Windows VM works, Windows on ARM included (the x64
+build runs under emulation):
+
+```bash
+./scripts/fetch-core.sh
+./scripts/parallels-run.sh     # VM="Windows 11" by default
+```
+
+It builds the working tree inside the VM (installing the .NET 10 SDK on
+first run) and starts the app on the VM's desktop.
 
 ## The core
 

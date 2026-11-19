@@ -1,0 +1,85 @@
+<Page
+    x:Class="Veltrio.Pages.SearchPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:services="using:Veltrio.Services">
+
+    <ScrollViewer>
+        <StackPanel Padding="48,28,0,60" Spacing="28">
+            <StackPanel Spacing="12" Padding="0,0,48,0">
+                <Button Style="{StaticResource VeltrioLinkButton}" Click="OnBack">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE72B;" FontSize="9" />
+                        <TextBlock Text="RETOUR" />
+                    </StackPanel>
+                </Button>
+                <TextBlock Text="RECHERCHE" Style="{StaticResource VeltrioAccentEyebrow}" Margin="0,8,0,0" />
+                <TextBox x:Name="Query" PlaceholderText="On regarde quoi ?" FontFamily="{StaticResource VeltrioSerif}"
+                         FontSize="40" FontWeight="Bold" BorderThickness="0,0,0,1" Padding="0,6"
+                         Background="Transparent" BorderBrush="{StaticResource VeltrioBorderStrongBrush}"
+                         TextChanged="OnQueryChanged" KeyDown="OnQueryKeyDown">
+                    <TextBox.Resources>
+                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#E6A84B" />
+                    </TextBox.Resources>
+                </TextBox>
+                <TextBlock x:Name="Hint" Style="{StaticResource VeltrioBody}" FontSize="13"
+                           Text="Tapez un titre. Les films et séries de vos sources s'affichent pendant la saisie, puis les chaînes de vos playlists." />
+                <ProgressRing x:Name="Searching" IsActive="False" Width="22" Height="22" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <ItemsControl x:Name="Results">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="44" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="services:CatalogRow">
+                        <StackPanel Spacing="14">
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <TextBlock Text="{x:Bind Title}" Style="{StaticResource VeltrioSectionTitle}" />
+                                <TextBlock Text="{x:Bind Subtitle}" Style="{StaticResource VeltrioEyebrow}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <ListView ItemsSource="{x:Bind Items}" SelectionMode="None" IsItemClickEnabled="True"
+                                      ItemClick="OnPosterClick" ItemTemplate="{StaticResource PosterTemplate}"
+                                      ItemContainerStyle="{StaticResource VeltrioBareListItem}"
+                                      ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                      ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.VerticalScrollBarVisibility="Hidden">
+                                <ListView.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <ItemsStackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ListView.ItemsPanel>
+                            </ListView>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <StackPanel x:Name="ChannelSection" Spacing="14" Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="Chaînes" Style="{StaticResource VeltrioSectionTitle}" />
+                    <TextBlock x:Name="ChannelCount" Style="{StaticResource VeltrioEyebrow}" VerticalAlignment="Center" />
+                </StackPanel>
+                <ListView x:Name="ChannelList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnChannelClick"
+                          ItemTemplate="{StaticResource ChannelTemplate}" ItemContainerStyle="{StaticResource VeltrioBareListItem}"
+                          ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                          ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.VerticalScrollBarVisibility="Hidden">
+                    <ListView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ItemsStackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ListView.ItemsPanel>
+                </ListView>
+            </StackPanel>
+
+            <StackPanel x:Name="NothingFound" Spacing="10" Visibility="Collapsed" Padding="0,0,48,0">
+                <TextBlock Text="Aucun résultat" Style="{StaticResource VeltrioSectionTitle}" />
+                <TextBlock Style="{StaticResource VeltrioBody}"
+                           Text="Essayez une recherche plus courte, ou ajoutez une source qui propose la recherche." />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,87 @@
+<Page
+    x:Class="Veltrio.Pages.SourcesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer>
+        <StackPanel Padding="{StaticResource VeltrioPagePadding}" Spacing="52" MaxWidth="1100" HorizontalAlignment="Left">
+            <StackPanel Spacing="10">
+                <TextBlock Text="SOURCES" Style="{StaticResource VeltrioAccentEyebrow}" />
+                <TextBlock Text="Sources" Style="{StaticResource VeltrioPageTitle}" />
+                <TextBlock Style="{StaticResource VeltrioBody}"
+                           Text="Tous les catalogues, serveurs et résolveurs de flux qui alimentent l'app." />
+                <Border Style="{StaticResource VeltrioRule}" Margin="0,8,0,0" />
+            </StackPanel>
+
+            <!-- 01 — Install from URL -->
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="01 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="Installer depuis une URL" Style="{StaticResource VeltrioSectionTitle}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource VeltrioBody}" FontSize="13"
+                           Text="Collez l'URL du manifest d'un addon Stremio (…/manifest.json ou un lien stremio://)." />
+                <Grid ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="AddonUrl" PlaceholderText="https://…/manifest.json" FontFamily="{StaticResource VeltrioMono}"
+                             KeyDown="OnAddonUrlKeyDown" />
+                    <Button x:Name="InstallButton" Grid.Column="1" Style="{StaticResource VeltrioPrimaryButton}"
+                            Padding="22,9" Click="OnInstall">
+                        <TextBlock x:Name="InstallLabel" Text="INSTALLER" />
+                    </Button>
+                </Grid>
+                <TextBlock x:Name="InstallError" Foreground="{StaticResource VeltrioDangerBrush}" TextWrapping="Wrap"
+                           Visibility="Collapsed" />
+            </StackPanel>
+
+            <!-- 02 — Installed addons -->
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="02 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="Addons installés" Style="{StaticResource VeltrioSectionTitle}" />
+                    <TextBlock x:Name="AddonCount" Style="{StaticResource VeltrioEyebrow}" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock x:Name="NoAddons" Style="{StaticResource VeltrioBody}" Visibility="Collapsed"
+                           Text="Aucun addon pour l'instant. Commencez par Cinemeta, juste en dessous." />
+                <StackPanel x:Name="AddonList" />
+            </StackPanel>
+
+            <!-- 03 — Suggested -->
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="03 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="Suggérés" Style="{StaticResource VeltrioSectionTitle}" />
+                </StackPanel>
+                <StackPanel x:Name="SuggestedList" />
+            </StackPanel>
+
+            <!-- 04 — IPTV playlists -->
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="04 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="Playlists IPTV" Style="{StaticResource VeltrioSectionTitle}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource VeltrioBody}" FontSize="13"
+                           Text="Toute URL qui renvoie une playlist M3U fonctionne, y compris les liens /get.php?…&amp;type=m3u des fournisseurs. Les chaînes apparaissent dans Direct et dans la recherche. Les fournisseurs Xtream Codes arrivent bientôt sur Windows." />
+                <StackPanel x:Name="PlaylistList" />
+                <Grid ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="PlaylistName" PlaceholderText="Nom (facultatif)" />
+                    <TextBox x:Name="PlaylistUrl" Grid.Column="1" PlaceholderText="URL M3U" FontFamily="{StaticResource VeltrioMono}" />
+                    <Button Grid.Column="2" Style="{StaticResource VeltrioGhostButton}" Padding="22,8" Click="OnAddPlaylist">
+                        <TextBlock Text="AJOUTER LA PLAYLIST" />
+                    </Button>
+                </Grid>
+                <TextBlock x:Name="PlaylistError" Foreground="{StaticResource VeltrioDangerBrush}" TextWrapping="Wrap"
+                           Visibility="Collapsed" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

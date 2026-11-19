@@ -1,0 +1,219 @@
+<Page
+    x:Class="Veltrio.Pages.DetailPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:services="using:Veltrio.Services">
+
+    <Page.Resources>
+        <!-- {Binding}, not x:Bind: x:Bind in these templates crashes the
+             Windows App SDK 2.6.5 XAML compiler (WMC9999 in
+             BindingPathListener.ResolveNameOnRoot, message lost). -->
+        <DataTemplate x:Key="EpisodeTemplate" x:DataType="services:EpisodeItem">
+            <Grid Padding="0,12" ColumnSpacing="18" BorderBrush="{StaticResource VeltrioBorderBrush}" BorderThickness="0,0,0,1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="176" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid Height="99" Background="{StaticResource VeltrioSurfaceBrush}"
+                      BorderBrush="{StaticResource VeltrioBorderBrush}" BorderThickness="1" VerticalAlignment="Top">
+                    <FontIcon Glyph="&#xE8B2;" FontSize="20" Foreground="{StaticResource VeltrioTextQuaternaryBrush}" />
+                    <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+                    <ProgressBar Value="{Binding Progress}" Maximum="100" VerticalAlignment="Bottom" MinHeight="2" Height="2"
+                                 CornerRadius="0" Background="Transparent" />
+                </Grid>
+                <StackPanel Grid.Column="1" Spacing="5">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="{Binding Code}" Style="{StaticResource VeltrioNumeral}" FontSize="10" />
+                        <TextBlock Text="{Binding ReleasedDate}" Style="{StaticResource VeltrioCaption}" />
+                        <TextBlock Text="VU" Style="{StaticResource VeltrioEyebrow}" Foreground="{StaticResource VeltrioSuccessBrush}"
+                                   Visibility="{Binding WatchedVisibility}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Title}" FontFamily="{StaticResource VeltrioSerif}" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{StaticResource VeltrioTextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Overview}" FontSize="12" MaxLines="2" TextTrimming="WordEllipsis"
+                               Style="{StaticResource VeltrioBody}" Foreground="{StaticResource VeltrioTextTertiaryBrush}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="StreamTemplate" x:DataType="services:StreamItem">
+            <Grid Padding="14,12" ColumnSpacing="16" BorderBrush="{StaticResource VeltrioBorderBrush}" BorderThickness="0,0,0,1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="6" Width="74" VerticalAlignment="Top">
+                    <TextBlock Text="{Binding Quality}" FontFamily="{StaticResource VeltrioMono}" FontSize="13" FontWeight="Bold"
+                               Foreground="{StaticResource VeltrioAccentBrush}" />
+                    <TextBlock Text="{Binding Kind}" Style="{StaticResource VeltrioEyebrow}" FontSize="9" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{StaticResource VeltrioTextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Title}" FontFamily="{StaticResource VeltrioMono}" FontSize="11" LineHeight="16"
+                               TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource VeltrioTextTertiaryBrush}" />
+                </StackPanel>
+                <FontIcon Grid.Column="2" Glyph="&#xE768;" FontSize="12" Foreground="{StaticResource VeltrioTextQuaternaryBrush}"
+                          VerticalAlignment="Center" />
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid>
+        <!-- Atmospheric backdrop: the still, faded into the canvas. -->
+        <Grid Height="760" VerticalAlignment="Top" IsHitTestVisible="False">
+            <Image x:Name="Backdrop" Stretch="UniformToFill" VerticalAlignment="Top" Opacity="0.32" />
+            <Rectangle>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#59000000" Offset="0" />
+                        <GradientStop Color="#A6000000" Offset="0.45" />
+                        <GradientStop Color="#FF000000" Offset="0.9" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+            <Rectangle Width="700" HorizontalAlignment="Left">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#8C000000" Offset="0" />
+                        <GradientStop Color="#00000000" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+        </Grid>
+
+        <Grid x:Name="Columns">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="LeftColumn" Width="620" />
+                <ColumnDefinition Width="1" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: info, actions, credits. -->
+            <ScrollViewer>
+                <StackPanel Padding="48,28,48,48" Spacing="22">
+                    <Button Style="{StaticResource VeltrioLinkButton}" Click="OnBack">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE72B;" FontSize="9" />
+                            <TextBlock Text="RETOUR" />
+                        </StackPanel>
+                    </Button>
+
+                    <StackPanel Spacing="14">
+                        <StackPanel Orientation="Horizontal" Spacing="14">
+                            <Rectangle Width="28" Height="1" Fill="{StaticResource VeltrioAccentBrush}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="AddonEyebrow" Style="{StaticResource VeltrioAccentEyebrow}" />
+                            <TextBlock x:Name="TypeEyebrow" Style="{StaticResource VeltrioEyebrow}" CharacterSpacing="180" />
+                        </StackPanel>
+                        <TextBlock x:Name="TitleText" Style="{StaticResource VeltrioPageTitle}" FontSize="42" MaxLines="3" />
+                    </StackPanel>
+
+                    <Grid ColumnSpacing="14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Height="210" Background="{StaticResource VeltrioSurfaceBrush}" VerticalAlignment="Top"
+                              BorderBrush="{StaticResource VeltrioBorderBrush}" BorderThickness="1">
+                            <Image x:Name="PosterImage" Stretch="UniformToFill" />
+                        </Grid>
+                        <StackPanel x:Name="Overview" Grid.Column="1" Spacing="10">
+                            <TextBlock Text="APERÇU" Style="{StaticResource VeltrioEyebrow}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock x:Name="Description" Style="{StaticResource VeltrioBody}" Foreground="#BFFFFFFF" />
+                    <Border Style="{StaticResource VeltrioRule}" />
+
+                    <Grid ColumnSpacing="14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="PlayButton" Style="{StaticResource VeltrioPrimaryButton}" HorizontalAlignment="Stretch"
+                                IsEnabled="False" Click="OnPlayBest">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <ProgressRing x:Name="PlayLoading" IsActive="True" Width="14" Height="14" Foreground="#1A1206" />
+                                <FontIcon x:Name="PlayIcon" Glyph="&#xE768;" FontSize="12" Visibility="Collapsed" />
+                                <TextBlock x:Name="PlayLabel" Text="CHARGEMENT DES FLUX" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="SaveButton" Grid.Column="1" Style="{StaticResource VeltrioGhostButton}" Click="OnToggleSave">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon x:Name="SaveIcon" Glyph="&#xE734;" FontSize="12" />
+                                <TextBlock x:Name="SaveLabel" Text="ENREGISTRER" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <TextBlock x:Name="ErrorText" Foreground="{StaticResource VeltrioDangerBrush}" TextWrapping="Wrap"
+                               Visibility="Collapsed" />
+
+                    <StackPanel x:Name="Credits" Spacing="10" Visibility="Collapsed">
+                        <Border Style="{StaticResource VeltrioRule}" Margin="0,0,0,8" />
+                        <TextBlock Text="GÉNÉRIQUE" Style="{StaticResource VeltrioEyebrow}" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Rectangle Grid.Column="1" Fill="{StaticResource VeltrioBorderBrush}" />
+
+            <!-- Right: episodes for a series, then the streams of the
+                 chosen episode; streams straight away for a film. -->
+            <Grid Grid.Column="2" Padding="48,28,48,0">
+                <Grid x:Name="EpisodesPane" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Spacing="14" Padding="0,0,0,10">
+                        <StackPanel Orientation="Horizontal" Spacing="14">
+                            <TextBlock Text="ÉPISODES" Style="{StaticResource VeltrioAccentEyebrow}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="EpisodeCount" Style="{StaticResource VeltrioEyebrow}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel x:Name="SeasonChips" Orientation="Horizontal" Spacing="8" />
+                    </StackPanel>
+                    <ListView x:Name="EpisodeList" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True"
+                              ItemClick="OnEpisodeClick" ItemTemplate="{StaticResource EpisodeTemplate}"
+                              ItemContainerStyle="{StaticResource VeltrioRowListItem}" Padding="0,0,0,40" />
+                </Grid>
+
+                <Grid x:Name="StreamsPane">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Spacing="14" Padding="0,0,0,12">
+                        <Button x:Name="BackToEpisodes" Style="{StaticResource VeltrioLinkButton}" Click="OnBackToEpisodes"
+                                Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE72B;" FontSize="9" />
+                                <TextBlock Text="ÉPISODES" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock x:Name="EpisodeHeading" Style="{StaticResource VeltrioSectionTitle}" TextWrapping="Wrap"
+                                   Visibility="Collapsed" />
+                        <StackPanel Orientation="Horizontal" Spacing="14">
+                            <TextBlock Text="FLUX" Style="{StaticResource VeltrioAccentEyebrow}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="StreamCount" Style="{StaticResource VeltrioEyebrow}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Grid>
+                            <StackPanel x:Name="QualityChips" Orientation="Horizontal" Spacing="8" />
+                            <ComboBox x:Name="SourceFilter" HorizontalAlignment="Right" MinWidth="200"
+                                      SelectionChanged="OnFilterChanged" />
+                        </Grid>
+                    </StackPanel>
+                    <ProgressRing x:Name="StreamsLoading" Grid.Row="1" IsActive="False" Width="26" Height="26"
+                                  HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,20,0,0" />
+                    <TextBlock x:Name="StreamsEmpty" Grid.Row="1" Visibility="Collapsed" Margin="0,20,0,0" TextWrapping="Wrap"
+                               Style="{StaticResource VeltrioBody}" />
+                    <ListView x:Name="StreamList" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True"
+                              ItemClick="OnStreamClick" ItemTemplate="{StaticResource StreamTemplate}"
+                              ItemContainerStyle="{StaticResource VeltrioRowListItem}" Padding="0,0,0,40" />
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

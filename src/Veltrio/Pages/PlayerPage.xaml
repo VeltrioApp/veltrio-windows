@@ -1,0 +1,49 @@
+<Page
+    x:Class="Veltrio.Pages.PlayerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Black">
+
+    <Grid PointerMoved="OnPointerMoved">
+        <!-- Provisional player: Windows' own media stack. The libmpv vs
+             FFmpegInteropX decision is still open. -->
+        <MediaPlayerElement x:Name="Player" AreTransportControlsEnabled="True" Stretch="Uniform"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+
+        <Grid x:Name="TopBar" VerticalAlignment="Top" Padding="28,22,28,40">
+            <Grid.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#B3000000" Offset="0" />
+                    <GradientStop Color="#00000000" Offset="1" />
+                </LinearGradientBrush>
+            </Grid.Background>
+            <StackPanel Orientation="Horizontal" Spacing="22">
+                <Button Style="{StaticResource VeltrioLinkButton}" Click="OnClose" Foreground="#FAF7F2">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE72B;" FontSize="10" />
+                        <TextBlock Text="RETOUR" />
+                    </StackPanel>
+                </Button>
+                <StackPanel Spacing="2">
+                    <TextBlock x:Name="TitleText" FontFamily="{StaticResource VeltrioSerif}" FontSize="20" FontWeight="SemiBold"
+                               Foreground="#FAF7F2" />
+                    <TextBlock x:Name="SubtitleText" Style="{StaticResource VeltrioCaption}" Foreground="#BFFFFFFF" />
+                </StackPanel>
+                <Border x:Name="LiveBadge" Background="{StaticResource VeltrioDangerBrush}" Padding="8,2" VerticalAlignment="Center"
+                        Visibility="Collapsed">
+                    <TextBlock Text="DIRECT" FontSize="9" FontWeight="Bold" CharacterSpacing="200" Foreground="White" />
+                </Border>
+            </StackPanel>
+            <Button Style="{StaticResource VeltrioLinkButton}" HorizontalAlignment="Right" Foreground="#FAF7F2" Padding="6"
+                    Click="OnToggleFullScreen" ToolTipService.ToolTip="Plein écran (F)">
+                <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" FontSize="14" />
+            </Button>
+        </Grid>
+
+        <StackPanel x:Name="Status" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" MaxWidth="520">
+            <ProgressRing x:Name="Busy" IsActive="True" Width="36" Height="36" />
+            <TextBlock x:Name="StatusText" Text="Préparation du flux…" HorizontalAlignment="Center" TextAlignment="Center"
+                       TextWrapping="Wrap" Foreground="#BFFFFFFF" />
+        </StackPanel>
+    </Grid>
+</Page>

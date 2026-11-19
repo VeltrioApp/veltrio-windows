@@ -1,0 +1,70 @@
+<Page
+    x:Class="Veltrio.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer>
+        <StackPanel Padding="{StaticResource VeltrioPagePadding}" Spacing="44" MaxWidth="900" HorizontalAlignment="Left">
+            <StackPanel Spacing="10">
+                <Button Style="{StaticResource VeltrioLinkButton}" Click="OnBack">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE72B;" FontSize="9" />
+                        <TextBlock Text="RETOUR" />
+                    </StackPanel>
+                </Button>
+                <TextBlock Text="PRÉFÉRENCES" Style="{StaticResource VeltrioAccentEyebrow}" Margin="0,8,0,0" />
+                <TextBlock Text="Réglages" Style="{StaticResource VeltrioPageTitle}" />
+                <Border Style="{StaticResource VeltrioRule}" Margin="0,8,0,0" />
+            </StackPanel>
+
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="01 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="Sources" Style="{StaticResource VeltrioSectionTitle}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource VeltrioBody}"
+                           Text="Les addons Stremio et les playlists IPTV se gèrent dans l'onglet Sources." />
+                <Button Style="{StaticResource VeltrioGhostButton}" Click="OnOpenSources" HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="OUVRIR LES SOURCES" />
+                        <FontIcon Glyph="&#xE72A;" FontSize="10" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="02 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="Lecture" Style="{StaticResource VeltrioSectionTitle}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource VeltrioBody}"
+                           Text="Le lecteur Windows est provisoire : il lit le MP4, le HLS et la plupart des MKV en H.264. Le HEVC demande l'extension « Vidéo HEVC » du Microsoft Store. Raccourcis : Espace pour lecture/pause, ← et → pour reculer de 10 s ou avancer de 30 s, F pour le plein écran, Échap pour quitter." />
+            </StackPanel>
+
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="03 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="Données" Style="{StaticResource VeltrioSectionTitle}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource VeltrioBody}"
+                           Text="Addons, playlists, collection et progression sont enregistrés sur cet appareil uniquement." />
+                <TextBlock x:Name="DataFolder" FontFamily="{StaticResource VeltrioMono}" FontSize="12" IsTextSelectionEnabled="True"
+                           Foreground="{StaticResource VeltrioTextSecondaryBrush}" />
+                <Button Style="{StaticResource VeltrioGhostButton}" Click="OnOpenFolder" HorizontalAlignment="Left">
+                    <TextBlock Text="OUVRIR LE DOSSIER" />
+                </Button>
+            </StackPanel>
+
+            <StackPanel Spacing="10">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="04 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="À propos" Style="{StaticResource VeltrioSectionTitle}" />
+                </StackPanel>
+                <TextBlock x:Name="Versions" FontFamily="{StaticResource VeltrioMono}" FontSize="12"
+                           Foreground="{StaticResource VeltrioTextSecondaryBrush}" />
+                <TextBlock Style="{StaticResource VeltrioBody}" FontSize="12"
+                           Text="Veltrio ne fournit aucun contenu : il affiche ce que renvoient les sources que vous installez." />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
