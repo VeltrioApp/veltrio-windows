@@ -22,6 +22,8 @@ jobs:
         run: ./scripts/fetch-core.sh
         env:
           GH_TOKEN: ${{ secrets.CORE_RELEASES_TOKEN || github.token }}
+      - name: Fetch libmpv
+        run: ./scripts/fetch-mpv.sh
       # Everything below switches on once the solution is committed.
       - uses: actions/setup-dotnet@v4
         if: hashFiles('*.sln') != ''

@@ -17,7 +17,7 @@ public sealed partial class SettingsPage : Page
         string core;
         try { core = CoreService.Version; }
         catch { core = "indisponible"; }
-        Versions.Text = $"Veltrio {app} · core {core} · Windows App SDK";
+        Versions.Text = $"Veltrio {app} · core {core} · libmpv · Windows App SDK";
     }
 
     private void OnBack(object sender, RoutedEventArgs e) => Navigator.Back();

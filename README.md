@@ -15,9 +15,12 @@ titles), French UI.
 - **Direct**: M3U playlists, channels by group.
 - **Sources**: install from URL, enable, reorder, remove, suggestions;
   IPTV playlists.
-- **Player** (provisional): Windows' MediaPlayerElement, resume and
-  progress, torrents through the core's engine. Plays MP4 / HLS / most
-  H.264 MKV; the libmpv vs FFmpegInteropX decision is still open.
+- **Player**: libmpv, like macOS. mpv renders through its OpenGL API into
+  ANGLE (GL ES over Direct3D 11), on the same D3D11 device as a
+  composition swapchain shown by a `SwapChainPanel`; the controls are
+  XAML on top (scrubber, ±10/30 s, volume, audio and subtitle tracks,
+  speed, full screen). Resume and progress, torrents through the core's
+  engine. A log goes to `player.log` in the data folder.
 
 Not yet on Windows: Xtream Codes providers, debrid, media servers
 (Jellyfin/Plex/Emby), Trakt/SIMKL, EPG, subtitles, downloads, casting —
@@ -35,6 +38,7 @@ Windows 10 1904+ / 11, the .NET 10 SDK, and `gh` signed in with access to
 
 ```bash
 ./scripts/fetch-core.sh     # Git Bash: core release from core.version → core/
+./scripts/fetch-mpv.sh      # libmpv (LGPL) + CA bundle from mpv.version → mpv/ (needs 7-Zip)
 dotnet build Veltrio.Windows.sln -c Debug -p:Platform=x64
 ```
 
@@ -50,6 +54,7 @@ build runs under emulation):
 
 ```bash
 ./scripts/fetch-core.sh
+./scripts/fetch-mpv.sh
 ./scripts/parallels-run.sh     # VM="Windows 11" by default
 ```
 

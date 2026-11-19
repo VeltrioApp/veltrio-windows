@@ -38,7 +38,7 @@
                     <TextBlock Text="Lecture" Style="{StaticResource VeltrioSectionTitle}" />
                 </StackPanel>
                 <TextBlock Style="{StaticResource VeltrioBody}"
-                           Text="Le lecteur Windows est provisoire : il lit le MP4, le HLS et la plupart des MKV en H.264. Le HEVC demande l'extension « Vidéo HEVC » du Microsoft Store. Raccourcis : Espace pour lecture/pause, ← et → pour reculer de 10 s ou avancer de 30 s, F pour le plein écran, Échap pour quitter." />
+                           Text="Le lecteur s'appuie sur mpv, comme sur macOS : MKV, HEVC, HDR, pistes audio et sous-titres intégrés, décodage matériel quand la carte graphique le permet. Raccourcis : Espace pour lecture/pause, ← et → pour reculer de 10 s ou avancer de 30 s, ↑ et ↓ pour le volume, M pour couper le son, F pour le plein écran, Échap pour quitter." />
             </StackPanel>
 
             <StackPanel Spacing="14">
@@ -64,6 +64,8 @@
                            Foreground="{StaticResource VeltrioTextSecondaryBrush}" />
                 <TextBlock Style="{StaticResource VeltrioBody}" FontSize="12"
                            Text="Veltrio ne fournit aucun contenu : il affiche ce que renvoient les sources que vous installez." />
+                <TextBlock Style="{StaticResource VeltrioBody}" FontSize="12"
+                           Text="Lecture par libmpv (LGPL 2.1+, mpv.io), rendu via ANGLE (BSD). Le journal du lecteur est dans le dossier de données (player.log)." />
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

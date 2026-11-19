@@ -1,0 +1,8 @@
+# libmpv for the player, fetched by scripts/fetch-mpv.sh.
+# LGPL build from zhongfly/mpv-winbuild (mpv commit b7339522cd), and the
+# CA bundle mpv's TLS verifies against (curl's extract of Mozilla's roots).
+MPV_RELEASE=2026-11-19-b7339522cd
+MPV_ASSET=mpv-dev-lgpl-x86_64-20261119-git-b7339522cd.7z
+MPV_SHA256=c48d6d4c689669de054a8c1be9b795d951aa14e45cb0330b1c9146e541ced5e8
+CACERT_URL=https://curl.se/ca/cacert-2026-11-05.pem
+CACERT_SHA256=427c064216761a1e72a8b30f0d954d08cb6e4435a82091fb865afd20c8497285

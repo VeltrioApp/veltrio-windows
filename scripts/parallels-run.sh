@@ -3,6 +3,7 @@
 # Build and launch the app in a Parallels Windows VM, from the Mac.
 #
 #   ./scripts/fetch-core.sh            # once: the core into core/
+#   ./scripts/fetch-mpv.sh             # once: libmpv into mpv/
 #   ./scripts/parallels-run.sh         # build in the VM, start the app on its desktop
 #
 # The working tree is zipped and served to the VM over Parallels' shared
@@ -23,6 +24,7 @@ PORT="${PORT:-8765}"
 CONFIG="${CONFIG:-Debug}"
 
 [ -f "$ROOT/core/veltrio_core.dll" ] || { echo "core/ is missing: run ./scripts/fetch-core.sh first" >&2; exit 1; }
+[ -f "$ROOT/mpv/libmpv-2.dll" ] || { echo "mpv/ is missing: run ./scripts/fetch-mpv.sh first" >&2; exit 1; }
 command -v prlctl >/dev/null || { echo "prlctl not found: is Parallels Desktop installed?" >&2; exit 1; }
 
 case "$(prlctl status "$VM" | awk '{print $NF}')" in

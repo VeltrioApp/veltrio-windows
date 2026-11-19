@@ -2,15 +2,25 @@
     x:Class="Veltrio.Pages.PlayerPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Background="Black">
+    xmlns:local="using:Veltrio.Pages"
+    Background="Black"
+    IsTabStop="True" UseSystemFocusVisuals="False">
 
-    <Grid PointerMoved="OnPointerMoved">
-        <!-- Provisional player: Windows' own media stack. The libmpv vs
-             FFmpegInteropX decision is still open. -->
-        <MediaPlayerElement x:Name="Player" AreTransportControlsEnabled="True" Stretch="Uniform"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+    <Page.Resources>
+        <local:TimeLabelConverter x:Key="TimeLabel" />
+        <Style x:Key="PlayerIconButton" TargetType="Button" BasedOn="{StaticResource VeltrioLinkButton}">
+            <Setter Property="Foreground" Value="#FAF7F2" />
+            <Setter Property="Padding" Value="8" />
+        </Style>
+    </Page.Resources>
 
-        <Grid x:Name="TopBar" VerticalAlignment="Top" Padding="28,22,28,40">
+    <Grid x:Name="Root" PointerMoved="OnPointerMoved" Tapped="OnSurfaceTapped" DoubleTapped="OnSurfaceDoubleTapped"
+          Background="Black">
+        <!-- mpv draws here (libmpv → ANGLE → D3D11 swapchain). -->
+        <SwapChainPanel x:Name="Video" />
+
+        <!-- Top: back, title, live badge, full screen. -->
+        <Grid x:Name="TopBar" VerticalAlignment="Top" Padding="28,22,28,48">
             <Grid.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                     <GradientStop Color="#B3000000" Offset="0" />
@@ -18,7 +28,8 @@
                 </LinearGradientBrush>
             </Grid.Background>
             <StackPanel Orientation="Horizontal" Spacing="22">
-                <Button Style="{StaticResource VeltrioLinkButton}" Click="OnClose" Foreground="#FAF7F2">
+                <Button Style="{StaticResource VeltrioLinkButton}" Click="OnClose" Foreground="#FAF7F2"
+                        AutomationProperties.Name="Retour">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE72B;" FontSize="10" />
                         <TextBlock Text="RETOUR" />
@@ -34,16 +45,100 @@
                     <TextBlock Text="DIRECT" FontSize="9" FontWeight="Bold" CharacterSpacing="200" Foreground="White" />
                 </Border>
             </StackPanel>
-            <Button Style="{StaticResource VeltrioLinkButton}" HorizontalAlignment="Right" Foreground="#FAF7F2" Padding="6"
-                    Click="OnToggleFullScreen" ToolTipService.ToolTip="Plein écran (F)">
-                <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" FontSize="14" />
-            </Button>
         </Grid>
 
-        <StackPanel x:Name="Status" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" MaxWidth="520">
-            <ProgressRing x:Name="Busy" IsActive="True" Width="36" Height="36" />
+        <!-- Centre: preparing, buffering, or what went wrong. -->
+        <StackPanel x:Name="Status" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18" MaxWidth="560">
+            <ProgressRing x:Name="Busy" IsActive="True" Width="36" Height="36" Foreground="{StaticResource VeltrioAccentBrush}" />
             <TextBlock x:Name="StatusText" Text="Préparation du flux…" HorizontalAlignment="Center" TextAlignment="Center"
                        TextWrapping="Wrap" Foreground="#BFFFFFFF" />
+            <Button x:Name="RetryButton" Style="{StaticResource VeltrioGhostButton}" HorizontalAlignment="Center"
+                    Visibility="Collapsed" Click="OnRetry">
+                <TextBlock Text="RÉESSAYER" />
+            </Button>
         </StackPanel>
+
+        <!-- Bottom: scrubber, time, transport, tracks, speed, volume. -->
+        <Grid x:Name="BottomBar" VerticalAlignment="Bottom" Padding="28,60,28,20">
+            <Grid.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#00000000" Offset="0" />
+                    <GradientStop Color="#CC000000" Offset="1" />
+                </LinearGradientBrush>
+            </Grid.Background>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid x:Name="ScrubRow" ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="PositionText" Text="0:00" VerticalAlignment="Center" FontFamily="{StaticResource VeltrioMono}"
+                           FontSize="12" Foreground="#FAF7F2" />
+                <Slider x:Name="Scrubber" Grid.Column="1" Minimum="0" Maximum="1" StepFrequency="1"
+                        IsThumbToolTipEnabled="True" ThumbToolTipValueConverter="{StaticResource TimeLabel}"
+                        ValueChanged="OnScrub" AutomationProperties.Name="Position" />
+                <TextBlock x:Name="DurationText" Grid.Column="2" Text="0:00" VerticalAlignment="Center"
+                           FontFamily="{StaticResource VeltrioMono}" FontSize="12" Foreground="#BFFFFFFF" />
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="0,6,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <Button x:Name="MuteButton" Style="{StaticResource PlayerIconButton}" Click="OnToggleMute"
+                            ToolTipService.ToolTip="Muet (M)" AutomationProperties.Name="Muet">
+                        <FontIcon x:Name="VolumeIcon" Glyph="&#xE767;" FontSize="16" />
+                    </Button>
+                    <Slider x:Name="VolumeSlider" Width="110" Minimum="0" Maximum="130" Value="100" VerticalAlignment="Center"
+                            ValueChanged="OnVolume" AutomationProperties.Name="Volume" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="18" HorizontalAlignment="Center">
+                    <Button x:Name="BackButton" Style="{StaticResource PlayerIconButton}" Click="OnBack10"
+                            ToolTipService.ToolTip="Reculer de 10 s (←)" AutomationProperties.Name="Reculer de 10 secondes">
+                        <FontIcon Glyph="&#xED3C;" FontSize="20" />
+                    </Button>
+                    <Button x:Name="PlayPauseButton" Style="{StaticResource PlayerIconButton}" Click="OnTogglePause"
+                            ToolTipService.ToolTip="Lecture / pause (Espace)" AutomationProperties.Name="Lecture ou pause">
+                        <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE769;" FontSize="26" />
+                    </Button>
+                    <Button x:Name="ForwardButton" Style="{StaticResource PlayerIconButton}" Click="OnForward30"
+                            ToolTipService.ToolTip="Avancer de 30 s (→)" AutomationProperties.Name="Avancer de 30 secondes">
+                        <FontIcon Glyph="&#xED3D;" FontSize="20" />
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="AudioButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Audio"
+                            AutomationProperties.Name="Pistes audio">
+                        <FontIcon Glyph="&#xE8D6;" FontSize="16" />
+                        <Button.Flyout>
+                            <MenuFlyout x:Name="AudioMenu" Placement="Top" />
+                        </Button.Flyout>
+                    </Button>
+                    <Button x:Name="SubtitleButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Sous-titres"
+                            AutomationProperties.Name="Sous-titres">
+                        <FontIcon Glyph="&#xED1E;" FontSize="16" />
+                        <Button.Flyout>
+                            <MenuFlyout x:Name="SubtitleMenu" Placement="Top" />
+                        </Button.Flyout>
+                    </Button>
+                    <Button x:Name="SpeedButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Vitesse"
+                            AutomationProperties.Name="Vitesse">
+                        <TextBlock x:Name="SpeedLabel" Text="1×" FontFamily="{StaticResource VeltrioMono}" FontSize="13" />
+                        <Button.Flyout>
+                            <MenuFlyout x:Name="SpeedMenu" Placement="Top" />
+                        </Button.Flyout>
+                    </Button>
+                    <Button Style="{StaticResource PlayerIconButton}" Click="OnToggleFullScreen"
+                            ToolTipService.ToolTip="Plein écran (F)" AutomationProperties.Name="Plein écran">
+                        <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" FontSize="16" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Grid>
     </Grid>
 </Page>

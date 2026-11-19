@@ -231,6 +231,19 @@ public sealed class ChannelItem
     public string? Logo { get; init; }
     public string Group { get; init; } = "";
 
+    /// <summary>A playlist entry pointing at a file (provider VOD lists)
+    /// rather than a live stream: it gets a scrubber.</summary>
+    public bool IsFile
+    {
+        get
+        {
+            var path = Uri.TryCreate(StreamUrl, UriKind.Absolute, out var u) ? u.AbsolutePath : StreamUrl;
+            return path.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase)
+                || path.EndsWith(".avi", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".mov", StringComparison.OrdinalIgnoreCase)
+                || path.EndsWith(".webm", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     internal static ChannelItem From(IptvChannel c) => new()
     {
         Id = c.id,

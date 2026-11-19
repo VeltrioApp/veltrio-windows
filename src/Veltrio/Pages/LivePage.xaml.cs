@@ -98,7 +98,7 @@ public sealed partial class LivePage : Page
     private void OnChannelClick(object sender, ItemClickEventArgs e)
     {
         var channel = (ChannelItem)e.ClickedItem;
-        Navigator.Play(new PlayRequest { Title = channel.Name, Subtitle = channel.Group, Url = channel.StreamUrl, IsLive = true });
+        Navigator.Play(new PlayRequest { Title = channel.Name, Subtitle = channel.Group, Url = channel.StreamUrl, IsLive = !channel.IsFile });
     }
 
     private void OnOpenSources(object sender, RoutedEventArgs e) => Navigator.Window.ShowSection(3);

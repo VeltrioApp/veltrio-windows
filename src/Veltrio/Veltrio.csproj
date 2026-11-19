@@ -27,6 +27,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.5" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
+    <!-- The player: Direct3D 11 / DXGI bindings, and ANGLE (GL ES over
+         D3D11) so libmpv's OpenGL renderer can draw into a SwapChainPanel. -->
+    <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
+    <PackageReference Include="Vortice.DXGI" Version="3.8.3" />
+    <PackageReference Include="Avalonia.Angle.Windows.Natives" Version="2.1.25547.20250602" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,5 +42,11 @@
   <ItemGroup>
     <Compile Include="..\..\core\Bindings\veltrio.cs" Link="Core\veltrio.cs" />
     <None Include="..\..\core\veltrio_core.dll" Link="veltrio_core.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- libmpv (LGPL build), downloaded by scripts/fetch-mpv.sh into mpv/. -->
+  <ItemGroup>
+    <None Include="..\..\mpv\libmpv-2.dll" Link="libmpv-2.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\mpv\cacert.pem" Link="cacert.pem" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
