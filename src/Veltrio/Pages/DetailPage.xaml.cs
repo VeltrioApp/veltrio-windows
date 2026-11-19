@@ -13,6 +13,7 @@ namespace Veltrio.Pages;
 public sealed partial class DetailPage : Page
 {
     private static readonly string[] Qualities = { "TOUT", "4K", "1080p", "720p" };
+    private const string CachedFilter = "CACHE";
 
     private DetailRequest _request = null!;
     private TitleDetails? _details;
@@ -214,9 +215,11 @@ public sealed partial class DetailPage : Page
 
     private void BuildQualityChips()
     {
-        foreach (var q in Qualities)
+        // "⚡ En cache" only means something with a debrid service connected.
+        var filters = DebridService.AnyConnected ? Qualities.Take(1).Append(CachedFilter).Concat(Qualities.Skip(1)) : Qualities;
+        foreach (var q in filters)
         {
-            var chip = new ToggleButton { Content = q.ToUpperInvariant(), IsChecked = q == _quality, Style = (Style)Application.Current.Resources["VeltrioChip"] };
+            var chip = new ToggleButton { Content = q == CachedFilter ? "⚡ EN CACHE" : q.ToUpperInvariant(), IsChecked = q == _quality, Style = (Style)Application.Current.Resources["VeltrioChip"] };
             chip.Click += (_, _) =>
             {
                 _quality = q;
@@ -251,12 +254,23 @@ public sealed partial class DetailPage : Page
         SourceFilter.SelectionChanged += OnFilterChanged;
         ApplyFilters();
         UpdatePlayButton();
+
+        // Then ask the debrid services what they have cached: ⚡ rows go first.
+        var hashes = streams.Select(s => s.InfoHash).OfType<string>().ToList();
+        if (!DebridService.AnyConnected || hashes.Count == 0) return;
+        StreamCount.Text += " · VÉRIFICATION DEBRID…";
+        await DebridService.PrefetchAsync(hashes);
+        if (request != _streamRequest) return;
+        _streams = _streams.OrderByDescending(s => s.IsCached).ThenByDescending(s => s.Score).ToList();
+        ApplyFilters();
+        UpdatePlayButton();
     }
 
     private IEnumerable<StreamItem> Visible()
     {
         var source = SourceFilter.SelectedIndex > 0 ? SourceFilter.SelectedItem as string : null;
-        return _streams.Where(s => (source is null || s.AddonName == source) && (_quality == "TOUT" || s.Quality == _quality));
+        return _streams.Where(s => (source is null || s.AddonName == source)
+            && (_quality == "TOUT" || (_quality == CachedFilter ? s.IsCached : s.Quality == _quality)));
     }
 
     private void ApplyFilters()

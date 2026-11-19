@@ -35,6 +35,16 @@
             <StackPanel Spacing="14">
                 <StackPanel Orientation="Horizontal" Spacing="14">
                     <TextBlock Text="02 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="Debrid" Style="{StaticResource VeltrioSectionTitle}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource VeltrioBody}"
+                           Text="Un service debrid lit les torrents en direct depuis ses serveurs, en HTTPS, sans partage pair à pair. Les flux qu'il a déjà en cache sont marqués ⚡ et passent en tête. Les clés restent sur cet appareil, chiffrées pour votre session Windows." />
+                <StackPanel x:Name="DebridCards" Spacing="12" />
+            </StackPanel>
+
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="03 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
                     <TextBlock Text="Lecture" Style="{StaticResource VeltrioSectionTitle}" />
                 </StackPanel>
                 <TextBlock Style="{StaticResource VeltrioBody}"
@@ -43,7 +53,7 @@
 
             <StackPanel Spacing="14">
                 <StackPanel Orientation="Horizontal" Spacing="14">
-                    <TextBlock Text="03 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="04 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
                     <TextBlock Text="Données" Style="{StaticResource VeltrioSectionTitle}" />
                 </StackPanel>
                 <TextBlock Style="{StaticResource VeltrioBody}"
@@ -57,7 +67,7 @@
 
             <StackPanel Spacing="10">
                 <StackPanel Orientation="Horizontal" Spacing="14">
-                    <TextBlock Text="04 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="05 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
                     <TextBlock Text="À propos" Style="{StaticResource VeltrioSectionTitle}" />
                 </StackPanel>
                 <TextBlock x:Name="Versions" FontFamily="{StaticResource VeltrioMono}" FontSize="12"

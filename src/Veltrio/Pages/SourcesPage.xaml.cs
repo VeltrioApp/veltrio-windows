@@ -198,6 +198,8 @@ public sealed partial class SourcesPage : Page
         if (e.Key == VirtualKey.Enter) OnInstall(sender, e);
     }
 
+    private void OnBrowseCatalog(object sender, RoutedEventArgs e) => Navigator.Go(typeof(AddonCatalogPage));
+
     private void OnAddPlaylist(object sender, RoutedEventArgs e)
     {
         var error = IptvStore.Add(PlaylistName.Text, PlaylistUrl.Text);

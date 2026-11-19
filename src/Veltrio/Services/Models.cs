@@ -192,6 +192,7 @@ public sealed class StreamItem
     public string Title => (Stream.title ?? Stream.description ?? "").Trim();
     public string Kind => Stream.source switch
     {
+        StreamSource.Torrent when IsCached => CacheLabel,
         StreamSource.Torrent => "TORRENT",
         StreamSource.Url => "DIRECT",
         StreamSource.YouTube => "YOUTUBE",
@@ -212,6 +213,18 @@ public sealed class StreamItem
     }
 
     public string? InfoHash => Stream.source is StreamSource.Torrent t ? t.infoHash : null;
+
+    /// <summary>The debrid service that has this torrent cached, if any.</summary>
+    public DebridProvider? CachedOn => InfoHash is { } h ? DebridService.CachedOn(h) : null;
+    public bool IsCached => CachedOn is not null;
+    public string CacheLabel => CachedOn switch
+    {
+        DebridProvider.RealDebrid => "⚡ RD",
+        DebridProvider.AllDebrid => "⚡ AD",
+        DebridProvider.Premiumize => "⚡ PM",
+        DebridProvider.TorBox => "⚡ TB",
+        _ => "",
+    };
 }
 
 /// <summary>An M3U playlist the user added.</summary>

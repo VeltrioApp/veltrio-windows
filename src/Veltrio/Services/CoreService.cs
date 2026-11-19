@@ -221,14 +221,17 @@ public static class CoreService
     }
 
     /// <summary>Turns a stream into a URL the player can open: links as
-    /// they are, torrents through the core's local engine.</summary>
-    public static async Task<string> ResolveAsync(StreamItem item)
+    /// they are; torrents through a debrid service when one is connected
+    /// (a direct HTTPS link, no seeding), else the core's local engine.</summary>
+    public static async Task<string> ResolveAsync(StreamItem item, int? season = null, int? episode = null)
     {
         switch (item.Stream.source)
         {
             case StreamSource.Url u when IsPlayable(u.url):
                 return u.url;
             case StreamSource.Torrent t:
+                if (DebridService.AnyConnected && await DebridService.ResolveAsync(t.infoHash, season, episode) is { } direct)
+                    return direct;
                 return await Torrents.StartStream(t.infoHash, t.sources, t.fileIdx);
             default:
                 throw new InvalidOperationException("Ce flux ne se lit pas dans l'app.");

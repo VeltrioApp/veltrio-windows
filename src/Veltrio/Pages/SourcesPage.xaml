@@ -13,6 +13,26 @@
                 <Border Style="{StaticResource VeltrioRule}" Margin="0,8,0,0" />
             </StackPanel>
 
+            <!-- The catalogue: the easy way in. -->
+            <Grid Padding="22,20" ColumnSpacing="18" Background="{StaticResource VeltrioSurfaceBrush}"
+                  BorderBrush="{StaticResource VeltrioBorderBrush}" BorderThickness="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Catalogue d'addons" Style="{StaticResource VeltrioSectionTitle}" FontSize="20" />
+                    <TextBlock Style="{StaticResource VeltrioBody}" FontSize="13"
+                               Text="Parcourez la collection officielle et des centaines d'addons communautaires, et installez-les en un clic." />
+                </StackPanel>
+                <Button Grid.Column="1" Style="{StaticResource VeltrioPrimaryButton}" VerticalAlignment="Center" Click="OnBrowseCatalog">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="PARCOURIR" />
+                        <FontIcon Glyph="&#xE72A;" FontSize="10" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
             <!-- 01 — Install from URL -->
             <StackPanel Spacing="14">
                 <StackPanel Orientation="Horizontal" Spacing="14">

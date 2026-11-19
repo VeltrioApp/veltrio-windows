@@ -14,7 +14,14 @@ titles), French UI.
 - **Collection**: saved and started titles, filters, watched / remove.
 - **Direct**: M3U playlists, channels by group.
 - **Sources**: install from URL, enable, reorder, remove, suggestions;
-  IPTV playlists.
+  IPTV playlists; the addon catalogue (Stremio's official collection and
+  the community site stremio-addons.net, one-click install).
+- **Debrid** (Settings): Real-Debrid (device code), AllDebrid (PIN, through
+  the core), TorBox and Premiumize (API key). Cached torrents get a ⚡ badge
+  and go first; playing a torrent goes through debrid before the local
+  engine. Keys are encrypted with DPAPI (`secrets.dat`). Real-Debrid no
+  longer answers availability checks, so its torrents are tried at
+  playback instead (added, played if already downloaded, else removed).
 - **Player**: libmpv, like macOS. mpv renders through its OpenGL API into
   ANGLE (GL ES over Direct3D 11), on the same D3D11 device as a
   composition swapchain shown by a `SwapChainPanel`; the controls are
@@ -22,7 +29,7 @@ titles), French UI.
   speed, full screen). Resume and progress, torrents through the core's
   engine. A log goes to `player.log` in the data folder.
 
-Not yet on Windows: Xtream Codes providers, debrid, media servers
+Not yet on Windows: Xtream Codes providers, media servers
 (Jellyfin/Plex/Emby), Trakt/SIMKL, EPG, subtitles, downloads, casting —
 their clients live in Swift on macOS, not in the core.
 

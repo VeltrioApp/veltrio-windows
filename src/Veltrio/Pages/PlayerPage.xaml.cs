@@ -104,8 +104,9 @@ public sealed partial class PlayerPage : Page
         {
             if (_url is null)
             {
-                StatusText.Text = _request.Stream?.InfoHash is null ? "Préparation du flux…" : "Connexion aux pairs du torrent…";
-                _url = _request.Url ?? await CoreService.ResolveAsync(_request.Stream!);
+                StatusText.Text = _request.Stream?.InfoHash is null ? "Préparation du flux…"
+                    : DebridService.AnyConnected ? "Résolution via le service debrid…" : "Connexion aux pairs du torrent…";
+                _url = _request.Url ?? await CoreService.ResolveAsync(_request.Stream!, _request.Season, _request.Episode);
             }
         }
         catch (Exception ex)
