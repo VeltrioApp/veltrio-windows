@@ -29,6 +29,27 @@ public sealed record MediaTrack(long Id, string Type, string? Lang, string? Titl
         ["ukr"] = "Ukrainien", ["uk"] = "Ukrainien",
     };
 
+    private static readonly string[][] SynonymGroups =
+    {
+        new[] { "fr", "fre", "fra" }, new[] { "en", "eng" }, new[] { "es", "spa" }, new[] { "de", "ger", "deu" },
+        new[] { "it", "ita" }, new[] { "pt", "por", "pob" }, new[] { "ru", "rus" }, new[] { "ja", "jpn" },
+        new[] { "ko", "kor" }, new[] { "zh", "chi", "zho" }, new[] { "ar", "ara" }, new[] { "nl", "dut", "nld" },
+        new[] { "sv", "swe" }, new[] { "pl", "pol" }, new[] { "tr", "tur" }, new[] { "hi", "hin" }, new[] { "hu", "hun" },
+    };
+
+    /// <summary>A language code and its 2/3-letter equivalents (fr ↔ fre ↔ fra).</summary>
+    public static HashSet<string> Synonyms(string code)
+    {
+        var lower = code.ToLowerInvariant();
+        var set = new HashSet<string> { lower };
+        foreach (var group in SynonymGroups) if (group.Contains(lower)) set.UnionWith(group);
+        return set;
+    }
+
+    /// <summary>"Français" for fre/fra/fr, the code in capitals otherwise.</summary>
+    public static string? LanguageName(string? code) =>
+        string.IsNullOrWhiteSpace(code) ? null : Languages.GetValueOrDefault(code.ToLowerInvariant(), code.ToUpperInvariant());
+
     /// <summary>"Français · EAC3 · Forcé", the label the menus show.</summary>
     public string Label
     {
@@ -66,6 +87,10 @@ public sealed unsafe class MpvPlayer : IDisposable
     public double Speed { get; private set; } = 1;
     public long AudioId { get; private set; }
     public long SubtitleId { get; private set; }
+    public double SubDelay { get; private set; }
+    public double AudioDelay { get; private set; }
+    public long Chapter { get; private set; } = -1;
+    public IReadOnlyList<(string Title, double Start)> Chapters { get; private set; } = Array.Empty<(string, double)>();
     public IReadOnlyList<MediaTrack> AudioTracks { get; private set; } = Array.Empty<MediaTrack>();
     public IReadOnlyList<MediaTrack> SubtitleTracks { get; private set; } = Array.Empty<MediaTrack>();
 
@@ -78,7 +103,7 @@ public sealed unsafe class MpvPlayer : IDisposable
     /// <summary>Playback ended: null at the natural end, else why it failed.</summary>
     public event Action<string?>? Ended;
 
-    private enum Prop : ulong { TimePos = 1, Duration, Pause, PausedForCache, Volume, Mute, Speed, Aid, Sid, TrackList }
+    private enum Prop : ulong { TimePos = 1, Duration, Pause, PausedForCache, Volume, Mute, Speed, Aid, Sid, TrackList, SubDelay, AudioDelay, Chapter, EofReached }
 
     public MpvPlayer(DispatcherQueue ui)
     {
@@ -127,6 +152,12 @@ public sealed unsafe class MpvPlayer : IDisposable
         LibMpv.ObserveProperty(Handle, (ulong)Prop.Aid, "aid", LibMpv.FormatInt64);
         LibMpv.ObserveProperty(Handle, (ulong)Prop.Sid, "sid", LibMpv.FormatInt64);
         LibMpv.ObserveProperty(Handle, (ulong)Prop.TrackList, "track-list/count", LibMpv.FormatInt64);
+        LibMpv.ObserveProperty(Handle, (ulong)Prop.SubDelay, "sub-delay", LibMpv.FormatDouble);
+        LibMpv.ObserveProperty(Handle, (ulong)Prop.AudioDelay, "audio-delay", LibMpv.FormatDouble);
+        LibMpv.ObserveProperty(Handle, (ulong)Prop.Chapter, "chapter", LibMpv.FormatInt64);
+        // keep-open: at the end mpv holds the last frame and sets eof-reached
+        // instead of ending the file.
+        LibMpv.ObserveProperty(Handle, (ulong)Prop.EofReached, "eof-reached", LibMpv.FormatFlag);
 
         _events = new Thread(EventLoop) { IsBackground = true, Name = "mpv events" };
         _events.Start();
@@ -156,6 +187,111 @@ public sealed unsafe class MpvPlayer : IDisposable
     public void SetSpeed(double speed) => LibMpv.SetPropertyString(Handle, "speed", Num(speed));
     public void SelectAudio(long id) => LibMpv.SetPropertyString(Handle, "aid", id <= 0 ? "no" : id.ToString());
     public void SelectSubtitle(long id) => LibMpv.SetPropertyString(Handle, "sid", id <= 0 ? "no" : id.ToString());
+
+    public void SetSubDelay(double seconds) => LibMpv.SetPropertyString(Handle, "sub-delay", Num(Math.Round(seconds, 2)));
+    public void SetAudioDelay(double seconds) => LibMpv.SetPropertyString(Handle, "audio-delay", Num(Math.Round(seconds, 2)));
+
+    /// <summary>Loads a subtitle file or URL and selects it.</summary>
+    public void AddSubtitle(string url, string? title = null, string? lang = null)
+    {
+        var args = new List<string> { "sub-add", url, "select" };
+        if (title is not null) { args.Add(title); if (lang is not null) args.Add(lang); }
+        LibMpv.Command(Handle, args.ToArray());
+    }
+
+    public void SetAspect(AspectMode mode)
+    {
+        LibMpv.SetPropertyString(Handle, "video-aspect-override", mode.MpvAspect());
+        LibMpv.SetPropertyString(Handle, "panscan", mode == AspectMode.Fill ? "1.0" : "0.0");
+        LibMpv.SetPropertyString(Handle, "keepaspect", mode == AspectMode.Stretch ? "no" : "yes");
+    }
+
+    /// <summary>0 = fit; positive enlarges (crops), negative shrinks. log2 scale, as mpv.</summary>
+    public void SetZoom(double zoom) => LibMpv.SetPropertyString(Handle, "video-zoom", Num(Math.Clamp(zoom, -1, 2)));
+
+    public void SetToneMapping(ToneMapping mapping)
+    {
+        LibMpv.SetPropertyString(Handle, "tone-mapping", mapping.MpvValue());
+        LibMpv.SetPropertyString(Handle, "hdr-compute-peak", "yes");
+    }
+
+    /// <summary>Bitstream AC3/E-AC3/DTS/TrueHD to an amplifier.</summary>
+    public void SetPassthrough(bool on) => LibMpv.SetPropertyString(Handle, "audio-spdif", on ? "ac3,eac3,dts,dts-hd,truehd" : "");
+
+    /// <summary>One-click tuning, the macOS profiles.</summary>
+    public void ApplyProfile(PlaybackProfile profile)
+    {
+        void P(string name, string value) => LibMpv.SetPropertyString(Handle, name, value);
+        switch (profile)
+        {
+            case PlaybackProfile.Quality:
+                P("scale", "ewa_lanczossharp"); P("dscale", "mitchell"); P("cscale", "spline36");
+                P("deband", "yes"); P("deband-iterations", "4"); P("video-sync", "display-resample");
+                P("hdr-compute-peak", "yes");
+                break;
+            case PlaybackProfile.Performance:
+                P("scale", "bilinear"); P("dscale", "bilinear"); P("cscale", "bilinear");
+                P("deband", "no"); P("video-sync", "audio");
+                break;
+            case PlaybackProfile.Audiophile:
+                P("audio-buffer", "0.5"); P("audio-exclusive", "yes");
+                break;
+            default:
+                P("scale", "spline36"); P("dscale", "mitchell"); P("cscale", "spline36");
+                P("deband", "yes"); P("video-sync", "display-resample");
+                break;
+        }
+    }
+
+    /// <summary>What the media-info panel lists, read now.</summary>
+    public IReadOnlyList<(string Label, string Value)> MediaInfo()
+    {
+        var info = new List<(string, string)>();
+        void Add(string label, string? value) { if (!string.IsNullOrWhiteSpace(value)) info.Add((label, value)); }
+        var w = GetString("width");
+        var h = GetString("height");
+        Add("Résolution", w is null || h is null ? null : $"{w} × {h}");
+        Add("Codec vidéo", GetString("video-codec"));
+        Add("Images/s", double.TryParse(GetString("estimated-vf-fps"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fps) ? $"{fps:0.###}" : null);
+        Add("Débit vidéo", long.TryParse(GetString("video-bitrate"), out var vb) && vb > 0 ? $"{vb / 1_000_000.0:0.0} Mb/s" : null);
+        var gamma = GetString("video-params/gamma") ?? "";
+        Add("Plage dynamique", gamma is "pq" or "hlg" ? $"HDR ({gamma.ToUpperInvariant()})" : gamma.Length > 0 ? "SDR" : null);
+        Add("Primaires", GetString("video-params/primaries"));
+        Add("Décodage", GetString("hwdec-current") is { Length: > 0 } hw && hw != "no" ? $"matériel ({hw})" : "logiciel");
+        Add("Codec audio", GetString("audio-codec-name") ?? GetString("audio-codec"));
+        Add("Canaux audio", GetString("audio-params/channel-count"));
+        Add("Débit audio", long.TryParse(GetString("audio-bitrate"), out var ab) && ab > 0 ? $"{ab / 1000} kb/s" : null);
+        Add("Conteneur", GetString("file-format"));
+        Add("Cache", double.TryParse(GetString("demuxer-cache-duration"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cache) ? $"{cache:0} s" : null);
+        return info;
+    }
+
+    private void ReadChapters()
+    {
+        var count = int.TryParse(GetString("chapter-list/count"), out var n) ? n : 0;
+        var list = new List<(string, double)>();
+        for (var i = 0; i < count; i++)
+        {
+            var title = GetString($"chapter-list/{i}/title") ?? $"Chapitre {i + 1}";
+            var start = double.TryParse(GetString($"chapter-list/{i}/time"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var t) ? t : 0;
+            list.Add((title, start));
+        }
+        Post(() => { Chapters = list; Changed?.Invoke("chapters"); });
+    }
+
+    private static readonly string[] IntroWords = { "intro", "opening", "op ", "theme song", "generique", "générique", "ouverture" };
+
+    /// <summary>Where "Skip intro" jumps to: the next chapter's start, when
+    /// the current chapter's title reads like an intro.</summary>
+    public double? IntroEnd
+    {
+        get
+        {
+            if (Chapter < 0 || Chapter + 1 >= Chapters.Count) return null;
+            var title = Chapters[(int)Chapter].Title.ToLowerInvariant() + " ";
+            return IntroWords.Any(title.Contains) ? Chapters[(int)Chapter + 1].Start : null;
+        }
+    }
 
     /// <summary>Raises subtitles above the control bar while it shows.</summary>
     public void SetSubtitleLift(bool lifted) => LibMpv.SetPropertyString(Handle, "sub-pos", lifted ? "84" : "100");
@@ -187,6 +323,7 @@ public sealed unsafe class MpvPlayer : IDisposable
                     break;
                 case LibMpv.EventFileLoaded:
                     ReadTracks();
+                    ReadChapters();
                     Post(() => FileLoaded?.Invoke());
                     break;
                 case LibMpv.EventEnd:
@@ -232,6 +369,10 @@ public sealed unsafe class MpvPlayer : IDisposable
             case Prop.Aid: { var v = L(); Post(() => { AudioId = v; Changed?.Invoke("aid"); }); break; }
             case Prop.Sid: { var v = L(); Post(() => { SubtitleId = v; Changed?.Invoke("sid"); }); break; }
             case Prop.TrackList: ReadTracks(); break;
+            case Prop.SubDelay: { var v = D(); Post(() => { SubDelay = v; Changed?.Invoke("sub-delay"); }); break; }
+            case Prop.AudioDelay: { var v = D(); Post(() => { AudioDelay = v; Changed?.Invoke("audio-delay"); }); break; }
+            case Prop.Chapter: { var v = has ? L() : -1; Post(() => { Chapter = v; Changed?.Invoke("chapter"); }); break; }
+            case Prop.EofReached: if (F()) Post(() => Ended?.Invoke(null)); break;
         }
     }
 
@@ -275,8 +416,14 @@ public sealed unsafe class MpvPlayer : IDisposable
         _disposed = true;
         LibMpv.Command(Handle, "stop");
         LibMpv.Wakeup(Handle);
-        _events.Join(TimeSpan.FromSeconds(2));
-        LibMpv.TerminateDestroy(Handle);
-        Handle = IntPtr.Zero;
+        // terminate_destroy can block while mpv drains a slow stream: off
+        // the UI thread, as on macOS. The event thread is done with the
+        // handle first.
+        _ = Task.Run(() =>
+        {
+            _events.Join(TimeSpan.FromSeconds(5));
+            LibMpv.TerminateDestroy(Handle);
+            Handle = IntPtr.Zero;
+        });
     }
 }

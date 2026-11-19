@@ -13,12 +13,15 @@ titles), French UI.
 - **Recherche**: across the addons' searchable catalogs and the IPTV channels.
 - **Collection**: saved and started titles, filters, watched / remove.
 - **Direct**: Xtream Codes accounts (live, films, series and series pages,
-  replay) and M3U playlists (a provider's get.php link is added as Xtream).
+  replay), M3U playlists by URL or local file (a provider's get.php link is
+  added as Xtream). Search covers Xtream films and series on the provider's
+  server.
   TV layout: numbered channel list with what's on, the selected channel
   large with now and up next; a guide grid. The XMLTV guide comes from
   xmltv.php or the playlist's url-tvg header (gzip handled, channels
-  matched by id or name). In the player: now/next banner, the channel list
-  to zap through (Page Up / Page Down), replay of past programmes.
+  matched by id or name). In the player: now/next cards on tune-in and a
+  now/next line, the channel list to zap through (Page Up / Page Down), a
+  replay panel of past programmes.
 - **Sources**: install from URL, enable, reorder, remove, suggestions;
   IPTV playlists; the addon catalogue (Stremio's official collection and
   the community site stremio-addons.net, one-click install).
@@ -31,9 +34,13 @@ titles), French UI.
 - **Player**: libmpv, like macOS. mpv renders through its OpenGL API into
   ANGLE (GL ES over Direct3D 11), on the same D3D11 device as a
   composition swapchain shown by a `SwapChainPanel`; the controls are
-  XAML on top (scrubber, ±10/30 s, volume, audio and subtitle tracks,
-  speed, full screen). Resume and progress, torrents through the core's
-  engine. A log goes to `player.log` in the data folder.
+  XAML on top: scrubber, ±10/30 s, volume, audio and subtitle tracks,
+  subtitles from addons (OpenSubtitles…, the preferred language added
+  automatically when the file has none) or a local file, speed, framing
+  and zoom, subtitle/audio delay, HDR tone mapping, playback profiles,
+  passthrough, media info (I), skip intro from chapters (S), next episode
+  with a countdown (N), full screen. Resume and progress. A log goes to
+  `player.log` in the data folder.
 
 Not yet on Windows: media servers
 (Jellyfin/Plex/Emby), Trakt/SIMKL, EPG, subtitles, downloads, casting —

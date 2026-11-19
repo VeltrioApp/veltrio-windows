@@ -76,46 +76,136 @@ public static class XtreamClient
 
     public static async Task<IReadOnlyList<ChannelItem>> MoviesAsync(XtreamAccount account)
     {
-        var categories = Categories(await GetAsync(account, "get_vod_categories"));
-        return Rows(await GetAsync(account, "get_vod_streams")).Select(s =>
-        {
-            var id = Text(s, "stream_id");
-            if (string.IsNullOrEmpty(id)) return null;
-            var ext = Nonempty(Text(s, "container_extension")) ?? "mp4";
-            return new ChannelItem
-            {
-                Id = $"xvod-{id}",
-                Name = Text(s, "name") is { Length: > 0 } n ? n : $"Film {id}",
-                StreamUrl = $"{account.BaseUrl}/movie/{Seg(account.Username)}/{Seg(account.Password)}/{id}.{ext}",
-                Logo = Nonempty(Text(s, "stream_icon")),
-                Group = categories.GetValueOrDefault(Text(s, "category_id") ?? "") ?? "Films",
-                Kind = ChannelKind.Movie,
-                XtreamId = id,
-                Rating = Rating(Text(s, "rating")),
-                Year = Nonempty(Text(s, "year")),
-            };
-        }).OfType<ChannelItem>().ToList();
+        var categories = await CategoriesAsync(account, "get_vod_categories");
+        var rows = Rows(await GetAsync(account, "get_vod_streams")).ToList();
+        Remember(account, "get_vod_streams", rows);
+        return rows.Select(s => Movie(account, s, categories)).OfType<ChannelItem>().ToList();
     }
 
     public static async Task<IReadOnlyList<ChannelItem>> SeriesAsync(XtreamAccount account)
     {
-        var categories = Categories(await GetAsync(account, "get_series_categories"));
-        return Rows(await GetAsync(account, "get_series")).Select(s =>
+        var categories = await CategoriesAsync(account, "get_series_categories");
+        var rows = Rows(await GetAsync(account, "get_series")).ToList();
+        Remember(account, "get_series", rows);
+        return rows.Select(s => Series(s, categories)).OfType<ChannelItem>().ToList();
+    }
+
+    private static ChannelItem? Movie(XtreamAccount account, JsonElement s, IReadOnlyDictionary<string, string> categories)
+    {
+        var id = Text(s, "stream_id");
+        if (string.IsNullOrEmpty(id)) return null;
+        var ext = Nonempty(Text(s, "container_extension")) ?? "mp4";
+        return new ChannelItem
         {
-            var id = Text(s, "series_id");
-            if (string.IsNullOrEmpty(id)) return null;
-            return new ChannelItem
-            {
-                Id = $"xseries-{id}",
-                Name = Text(s, "name") is { Length: > 0 } n ? n : $"Série {id}",
-                Logo = Nonempty(Text(s, "cover")),
-                Group = categories.GetValueOrDefault(Text(s, "category_id") ?? "") ?? "Séries",
-                Kind = ChannelKind.Series,
-                XtreamId = id,
-                Rating = Rating(Text(s, "rating")),
-                Year = Nonempty(Text(s, "releaseDate"))?[..Math.Min(4, Text(s, "releaseDate")!.Length)],
-            };
-        }).OfType<ChannelItem>().ToList();
+            Id = $"xvod-{id}",
+            Name = Text(s, "name") is { Length: > 0 } n ? n : $"Film {id}",
+            StreamUrl = $"{account.BaseUrl}/movie/{Seg(account.Username)}/{Seg(account.Password)}/{id}.{ext}",
+            Logo = Nonempty(Text(s, "stream_icon")),
+            Group = categories.GetValueOrDefault(Text(s, "category_id") ?? "") ?? "Films",
+            Kind = ChannelKind.Movie,
+            XtreamId = id,
+            Rating = Rating(Text(s, "rating")),
+            Year = Nonempty(Text(s, "year")),
+        };
+    }
+
+    private static ChannelItem? Series(JsonElement s, IReadOnlyDictionary<string, string> categories)
+    {
+        var id = Text(s, "series_id");
+        if (string.IsNullOrEmpty(id)) return null;
+        var released = Nonempty(Text(s, "releaseDate"));
+        return new ChannelItem
+        {
+            Id = $"xseries-{id}",
+            Name = Text(s, "name") is { Length: > 0 } n ? n : $"Série {id}",
+            Logo = Nonempty(Text(s, "cover")),
+            Group = categories.GetValueOrDefault(Text(s, "category_id") ?? "") ?? "Séries",
+            Kind = ChannelKind.Series,
+            XtreamId = id,
+            Rating = Rating(Text(s, "rating")),
+            Year = released?[..Math.Min(4, released.Length)],
+        };
+    }
+
+    // -------------------- search --------------------
+
+    /// <summary>Films then series matching the query, from the provider.
+    /// Panels take a search= parameter on the list endpoints, so this is a
+    /// server-side filter; many ignore it and send everything, so rows are
+    /// also matched here, and such a full answer is kept for 15 minutes so
+    /// the next search filters it locally instead of downloading it again.</summary>
+    public static async Task<IReadOnlyList<ChannelItem>> SearchAsync(XtreamAccount account, string query, int limit = 40)
+    {
+        query = query.Trim();
+        if (query.Length == 0) return Array.Empty<ChannelItem>();
+        var films = SearchRowsAsync(account, "get_vod_streams", query);
+        var series = SearchRowsAsync(account, "get_series", query);
+        var vodCategories = CategoriesAsync(account, "get_vod_categories");
+        var seriesCategories = CategoriesAsync(account, "get_series_categories");
+        var result = new List<ChannelItem>();
+        result.AddRange((await films).Where(r => TitleMatches(Text(r, "name"), query)).Take(limit)
+            .Select(r => Movie(account, r, SafeResult(vodCategories))).OfType<ChannelItem>());
+        result.AddRange((await series).Where(r => TitleMatches(Text(r, "name"), query)).Take(limit)
+            .Select(r => Series(r, SafeResult(seriesCategories))).OfType<ChannelItem>());
+        return result.Take(limit).ToList();
+    }
+
+    private static IReadOnlyDictionary<string, string> SafeResult(Task<IReadOnlyDictionary<string, string>> task) =>
+        task.IsCompletedSuccessfully ? task.Result : new Dictionary<string, string>();
+
+    private static async Task<IReadOnlyList<JsonElement>> SearchRowsAsync(XtreamAccount account, string action, string query)
+    {
+        if (Remembered(account, action) is { } full) return full;
+        try
+        {
+            var rows = Rows(await GetAsync(account, action, $"&search={Uri.EscapeDataString(query)}")).ToList();
+            if (rows.Count >= 500) Remember(account, action, rows);
+            return rows;
+        }
+        catch
+        {
+            return Array.Empty<JsonElement>();
+        }
+    }
+
+    /// <summary>Every word of the query in the name, ignoring case and accents.</summary>
+    public static bool TitleMatches(string? name, string query)
+    {
+        if (string.IsNullOrEmpty(name)) return false;
+        var haystack = EpgStore.Fold(name);
+        var words = EpgStore.Fold(query).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return words.Length > 0 && words.All(haystack.Contains);
+    }
+
+    // Full catalogues seen this session, per account and action, 15 minutes.
+    private static readonly Dictionary<string, (DateTime Stored, IReadOnlyList<JsonElement> Rows)> Catalogues = new();
+    private static readonly Dictionary<string, Task<IReadOnlyDictionary<string, string>>> CategoryCache = new();
+
+    private static string Key(XtreamAccount a, string action) => $"{a.BaseUrl}|{a.Username}|{action}";
+
+    private static void Remember(XtreamAccount account, string action, IReadOnlyList<JsonElement> rows)
+    {
+        lock (Catalogues) Catalogues[Key(account, action)] = (DateTime.UtcNow, rows);
+    }
+
+    private static IReadOnlyList<JsonElement>? Remembered(XtreamAccount account, string action)
+    {
+        lock (Catalogues)
+            return Catalogues.TryGetValue(Key(account, action), out var e) && DateTime.UtcNow - e.Stored < TimeSpan.FromMinutes(15) ? e.Rows : null;
+    }
+
+    private static Task<IReadOnlyDictionary<string, string>> CategoriesAsync(XtreamAccount account, string action)
+    {
+        lock (CategoryCache)
+        {
+            var key = Key(account, action);
+            if (CategoryCache.TryGetValue(key, out var cached) && !cached.IsFaulted) return cached;
+            var task = Load();
+            CategoryCache[key] = task;
+            return task;
+        }
+
+        async Task<IReadOnlyDictionary<string, string>> Load() => Categories(await GetAsync(account, action));
     }
 
     public static async Task<XtreamSeries> SeriesInfoAsync(XtreamAccount account, string seriesId)
@@ -214,13 +304,6 @@ public static class XtreamClient
     /// <summary>The provider's full XMLTV guide.</summary>
     public static string GuideUrl(XtreamAccount account) =>
         $"{account.BaseUrl}/xmltv.php?username={Uri.EscapeDataString(account.Username)}&password={Uri.EscapeDataString(account.Password)}";
-
-    // -------------------- search --------------------
-
-    /// <summary>Films and series whose name matches, from the catalogues
-    /// already loaded this session (providers mostly ignore search=).</summary>
-    public static IReadOnlyList<ChannelItem> Match(IEnumerable<ChannelItem> items, string query) =>
-        items.Where(i => i.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase)).Take(40).ToList();
 
     // -------------------- plumbing --------------------
 

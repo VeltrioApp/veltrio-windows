@@ -29,6 +29,26 @@
                 </StackPanel>
             </Grid>
         </DataTemplate>
+        <DataTemplate x:Key="ReplayTemplate">
+            <Grid Padding="14,9" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="92" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding TimeRange}" FontFamily="{StaticResource VeltrioMono}" FontSize="10" Foreground="#BFFFFFFF"
+                           TextWrapping="Wrap" />
+                <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Text="{Binding Title}" FontFamily="{StaticResource VeltrioSerif}" FontSize="13" FontWeight="SemiBold"
+                               Foreground="#FAF7F2" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#99FFFFFF" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <FontIcon Grid.Column="2" Glyph="&#xE768;" FontSize="10" Foreground="{StaticResource VeltrioAccentBrush}" />
+            </Grid>
+        </DataTemplate>
+        <Style x:Key="SidePanelTitle" TargetType="TextBlock" BasedOn="{StaticResource VeltrioAccentEyebrow}">
+            <Setter Property="Margin" Value="16,0,16,6" />
+        </Style>
         <Style x:Key="PlayerIconButton" TargetType="Button" BasedOn="{StaticResource VeltrioLinkButton}">
             <Setter Property="Foreground" Value="#FAF7F2" />
             <Setter Property="Padding" Value="8" />
@@ -80,6 +100,65 @@
             <TextBlock x:Name="ChannelPanelTitle" Style="{StaticResource VeltrioAccentEyebrow}" Margin="16,0,16,10" />
             <ListView x:Name="ZapList" Grid.Row="1" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="OnZapClick"
                       ItemTemplate="{StaticResource ZapTemplate}" ItemContainerStyle="{StaticResource VeltrioRowListItem}" />
+        </Grid>
+
+        <!-- Live: now and next, on tune-in and with the controls. -->
+        <StackPanel x:Name="EpgCards" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="28,128,0,0" Spacing="10"
+                    MaxWidth="460" Visibility="Collapsed" IsHitTestVisible="False" />
+
+        <!-- Replay: the past programmes the provider keeps. -->
+        <Grid x:Name="ReplayPanel" Width="420" HorizontalAlignment="Right" Background="#E6080808" Visibility="Collapsed"
+              Padding="0,70,0,110">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="REPLAY" Style="{StaticResource SidePanelTitle}" />
+            <TextBlock x:Name="ReplayHint" Grid.Row="1" Margin="16,0,16,10" FontSize="11" Foreground="#99FFFFFF" TextWrapping="Wrap"
+                       Text="Revenez à un programme passé : il reprend depuis son début." />
+            <ProgressRing x:Name="ReplayLoading" Grid.Row="2" IsActive="False" Width="22" Height="22" VerticalAlignment="Top" />
+            <ListView x:Name="ReplayList" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnReplayClick"
+                      ItemTemplate="{StaticResource ReplayTemplate}" ItemContainerStyle="{StaticResource VeltrioRowListItem}" />
+        </Grid>
+
+        <!-- Media info: codecs, resolution, HDR, tracks (I). -->
+        <Grid x:Name="InfoPanel" Width="380" HorizontalAlignment="Right" Background="#E6080808" Visibility="Collapsed"
+              Padding="0,70,0,110">
+            <ScrollViewer>
+                <StackPanel x:Name="InfoLines" Spacing="6" Padding="16,0,16,16" />
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Skip intro, when the chapter playing reads like one (S). -->
+        <Button x:Name="SkipIntroButton" Style="{StaticResource VeltrioPrimaryButton}" HorizontalAlignment="Right"
+                VerticalAlignment="Bottom" Margin="0,0,28,140" Visibility="Collapsed" Click="OnSkipIntro">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <FontIcon Glyph="&#xE893;" FontSize="11" />
+                <TextBlock Text="PASSER L'INTRO" />
+            </StackPanel>
+        </Button>
+
+        <!-- Next episode, at the end of one. -->
+        <Grid x:Name="NextOverlay" Background="#B3000000" Visibility="Collapsed">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" MaxWidth="560">
+                <TextBlock Text="ÉPISODE SUIVANT" Style="{StaticResource VeltrioAccentEyebrow}" HorizontalAlignment="Center" />
+                <TextBlock x:Name="NextTitle" FontFamily="{StaticResource VeltrioSerif}" FontSize="30" FontWeight="Bold"
+                           Foreground="#FAF7F2" TextAlignment="Center" TextWrapping="Wrap" />
+                <TextBlock x:Name="NextCountdown" FontFamily="{StaticResource VeltrioMono}" FontSize="12" Foreground="#BFFFFFFF"
+                           HorizontalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,8,0,0">
+                    <Button Style="{StaticResource VeltrioGhostButton}" Click="OnCancelNext">
+                        <TextBlock Text="ANNULER" />
+                    </Button>
+                    <Button x:Name="PlayNextButton" Style="{StaticResource VeltrioPrimaryButton}" Click="OnPlayNext">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE768;" FontSize="11" />
+                            <TextBlock Text="LIRE MAINTENANT" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
         </Grid>
 
         <!-- Centre: preparing, buffering, or what went wrong. -->
@@ -147,6 +226,10 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="NextButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Épisode suivant (N)"
+                            AutomationProperties.Name="Épisode suivant" Visibility="Collapsed" Click="OnPlayNext">
+                        <FontIcon Glyph="&#xE893;" FontSize="16" />
+                    </Button>
                     <Button x:Name="ReplayButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Revoir un programme"
                             AutomationProperties.Name="Revoir" Visibility="Collapsed" Click="OnReplay">
                         <FontIcon Glyph="&#xE81C;" FontSize="16" />
@@ -174,6 +257,17 @@
                         <TextBlock x:Name="SpeedLabel" Text="1×" FontFamily="{StaticResource VeltrioMono}" FontSize="13" />
                         <Button.Flyout>
                             <MenuFlyout x:Name="SpeedMenu" Placement="Top" />
+                        </Button.Flyout>
+                    </Button>
+                    <Button x:Name="InfoButton" Style="{StaticResource PlayerIconButton}" Click="OnToggleInfo"
+                            ToolTipService.ToolTip="Infos média (I)" AutomationProperties.Name="Infos média">
+                        <FontIcon Glyph="&#xE946;" FontSize="16" />
+                    </Button>
+                    <Button x:Name="SettingsButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Image, son et décalages"
+                            AutomationProperties.Name="Réglages de lecture">
+                        <FontIcon Glyph="&#xE713;" FontSize="16" />
+                        <Button.Flyout>
+                            <MenuFlyout x:Name="SettingsMenu" Placement="Top" Opening="OnSettingsOpening" />
                         </Button.Flyout>
                     </Button>
                     <Button Style="{StaticResource PlayerIconButton}" Click="OnToggleFullScreen"

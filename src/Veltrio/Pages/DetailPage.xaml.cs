@@ -347,21 +347,52 @@ public sealed partial class DetailPage : Page
             await Windows.System.Launcher.LaunchUriAsync(new Uri(external));
             return;
         }
-        var name = _details?.Name ?? _request.Name;
-        Navigator.Play(new PlayRequest
+        Navigator.Play(Request(stream, _episode));
+    }
+
+    /// <summary>The player request for a stream of the title (or of one
+    /// episode), chained to the following episode for "next episode".</summary>
+    private PlayRequest Request(StreamItem stream, EpisodeItem? episode)
+    {
+        var next = episode is null ? null : NextEpisode(episode);
+        return new PlayRequest
         {
-            Title = name,
-            Subtitle = _episode is null ? stream.Name : $"{_episode.Code} — {_episode.Title}",
+            Title = _details?.Name ?? _request.Name,
+            Subtitle = episode is null ? stream.Name : $"{episode.Code} — {episode.Title}",
             Stream = stream,
             ContentType = _request.Type,
             ContentId = _request.Id,
-            VideoId = _episode?.Id,
-            Season = _episode?.Season,
-            Episode = _episode?.Episode,
+            VideoId = episode?.Id,
+            Season = episode?.Season,
+            Episode = episode?.Episode,
             Poster = _details?.Poster ?? _request.Poster,
             Background = _details?.Background ?? _request.Background,
             Addon = _details?.Addon ?? _request.Addon,
-        });
+            NextLabel = next is null ? null : $"{next.Code.Replace(" · ", "")} · {next.Title}",
+            Next = next is null ? null : () => ResolveNextAsync(stream, next),
+        };
+    }
+
+    /// <summary>The episode after this one (the next season's first after
+    /// a season's last); specials (season 0) aren't chained.</summary>
+    private EpisodeItem? NextEpisode(EpisodeItem episode)
+    {
+        var list = _details!.Episodes.Where(e => e.Season is > 0).ToList();
+        var index = list.FindIndex(e => e.Id == episode.Id);
+        return index >= 0 && index + 1 < list.Count ? list[index + 1] : null;
+    }
+
+    /// <summary>The next episode's stream: same binge group (same release)
+    /// as the one playing, else the same addon and quality, else the best.</summary>
+    private async Task<PlayRequest?> ResolveNextAsync(StreamItem current, EpisodeItem next)
+    {
+        var streams = await CoreService.FetchStreamsAsync(_request.Type, next.Id);
+        if (streams.Count == 0) return null;
+        var playable = streams.Where(s => CoreService.ExternalUrl(s) is null).ToList();
+        var pick = (current.BingeGroup is { } group ? playable.FirstOrDefault(s => s.BingeGroup == group) : null)
+                   ?? playable.FirstOrDefault(s => s.AddonName == current.AddonName && s.Quality == current.Quality)
+                   ?? playable.FirstOrDefault();
+        return pick is null ? null : Request(pick, next);
     }
 
     private void OnBack(object sender, RoutedEventArgs e) => Navigator.Back();

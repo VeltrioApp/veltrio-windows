@@ -107,6 +107,11 @@ public static class EpgStore
     private static async Task<string?> GuideUrlAsync(PlaylistRef playlist)
     {
         if (playlist.Xtream is { } account) return XtreamClient.GuideUrl(account);
+        if (playlist.IsLocalFile)
+        {
+            using var reader = new StreamReader(playlist.Url);
+            return HeaderGuideUrl(await reader.ReadLineAsync() ?? "");
+        }
         if (!Uri.TryCreate(playlist.Url, UriKind.Absolute, out var uri) || !uri.Scheme.StartsWith("http")) return null;
         using var response = await Http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
         if (!response.IsSuccessStatusCode) return null;
@@ -268,6 +273,18 @@ public static class EpgStore
             && int.TryParse(zone.AsSpan(1, 2), out var hours) && int.TryParse(zone.AsSpan(3, 2), out var minutes))
             offset = new TimeSpan(hours, minutes, 0) * (zone[0] == '-' ? -1 : 1);
         return DateTime.SpecifyKind(local - offset, DateTimeKind.Utc);
+    }
+
+    /// <summary>Lower case, accents removed, punctuation as spaces.</summary>
+    public static string Fold(string s)
+    {
+        var sb = new StringBuilder();
+        foreach (var ch in s.Normalize(NormalizationForm.FormD))
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.NonSpacingMark) continue;
+            sb.Append(char.IsLetterOrDigit(ch) ? char.ToLowerInvariant(ch) : ' ');
+        }
+        return sb.ToString();
     }
 
     /// <summary>Letters and digits only, case and accents folded.</summary>

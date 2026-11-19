@@ -1,0 +1,81 @@
+namespace Veltrio.Player;
+
+/// <summary>Picture framing, as the macOS player offers.</summary>
+public enum AspectMode { Auto, Fill, Stretch, R16x9, R4x3, R21x9, R235 }
+
+public enum ToneMapping { Auto, Bt2446a, Bt2390, Hable, Reinhard, Clip }
+
+public enum PlaybackProfile { Balanced, Quality, Performance, Audiophile }
+
+public static class PlaybackOptionLabels
+{
+    public static string Label(this AspectMode m) => m switch
+    {
+        AspectMode.Fill => "Remplir (rogner)",
+        AspectMode.Stretch => "Étirer",
+        AspectMode.R16x9 => "16:9",
+        AspectMode.R4x3 => "4:3",
+        AspectMode.R21x9 => "21:9",
+        AspectMode.R235 => "2,35:1",
+        _ => "Automatique",
+    };
+
+    public static string MpvAspect(this AspectMode m) => m switch
+    {
+        AspectMode.R16x9 => "16:9",
+        AspectMode.R4x3 => "4:3",
+        AspectMode.R21x9 => "21:9",
+        AspectMode.R235 => "2.35",
+        _ => "-1",
+    };
+
+    public static string Label(this ToneMapping t) => t switch
+    {
+        ToneMapping.Bt2446a => "BT.2446a (équilibré)",
+        ToneMapping.Bt2390 => "BT.2390 (cinéma)",
+        ToneMapping.Hable => "Hable",
+        ToneMapping.Reinhard => "Reinhard",
+        ToneMapping.Clip => "Aucun (écrêter)",
+        _ => "Automatique",
+    };
+
+    public static string MpvValue(this ToneMapping t) => t switch
+    {
+        ToneMapping.Bt2446a => "bt.2446a",
+        ToneMapping.Bt2390 => "bt.2390",
+        ToneMapping.Hable => "hable",
+        ToneMapping.Reinhard => "reinhard",
+        ToneMapping.Clip => "clip",
+        _ => "auto",
+    };
+
+    public static string Label(this PlaybackProfile p) => p switch
+    {
+        PlaybackProfile.Quality => "Qualité maximale",
+        PlaybackProfile.Performance => "Performances",
+        PlaybackProfile.Audiophile => "Audiophile",
+        _ => "Équilibré",
+    };
+
+    public static string Blurb(this PlaybackProfile p) => p switch
+    {
+        PlaybackProfile.Quality => "Meilleure image, plus de calcul ; tone mapping HDR soigné.",
+        PlaybackProfile.Performance => "Peu de calcul, peu d'énergie ; filtres d'image simples.",
+        PlaybackProfile.Audiophile => "Son en bitstream (DTS, AC3…) vers l'ampli ; tampon audio plus grand.",
+        _ => "Réglages sûrs, bons sur toute machine.",
+    };
+}
+
+/// <summary>Player choices that stick between sessions (player-prefs.json).</summary>
+public sealed class PlayerPrefs
+{
+    public PlaybackProfile Profile { get; set; } = PlaybackProfile.Balanced;
+    public ToneMapping ToneMapping { get; set; } = ToneMapping.Auto;
+    public bool Passthrough { get; set; }
+    public bool AutoNextEpisode { get; set; } = true;
+
+    private const string File = "player-prefs.json";
+    private static PlayerPrefs? _current;
+    public static PlayerPrefs Current => _current ??= Services.Storage.Load(File, new PlayerPrefs());
+    public void Save() => Services.Storage.Save(File, this);
+}

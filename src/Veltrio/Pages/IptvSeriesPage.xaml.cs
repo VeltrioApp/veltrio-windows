@@ -120,15 +120,26 @@ public sealed partial class IptvSeriesPage : Page
 
     private void OnEpisodeClick(object sender, ItemClickEventArgs e) => Play((XtreamEpisode)e.ClickedItem);
 
-    private void Play(XtreamEpisode episode) => Navigator.Play(new PlayRequest
+    private void Play(XtreamEpisode episode) => Navigator.Play(Request(episode));
+
+    /// <summary>An episode's request, chained to the next one.</summary>
+    private PlayRequest Request(XtreamEpisode episode)
     {
-        Title = _series?.Name ?? _request.Series.Name,
-        Subtitle = $"{episode.Code} — {episode.Title}",
-        Url = episode.StreamUrl,
-        ContentType = "iptv",
-        ContentId = $"xep-{episode.Id}",
-        Poster = episode.Image ?? _series?.Cover,
-    });
+        var list = _series?.Episodes ?? Array.Empty<XtreamEpisode>();
+        var index = list.ToList().FindIndex(e => e.Id == episode.Id);
+        var next = index >= 0 && index + 1 < list.Count ? list[index + 1] : null;
+        return new PlayRequest
+        {
+            Title = _series?.Name ?? _request.Series.Name,
+            Subtitle = $"{episode.Code} — {episode.Title}",
+            Url = episode.StreamUrl,
+            ContentType = "iptv",
+            ContentId = $"xep-{episode.Id}",
+            Poster = episode.Image ?? _series?.Cover,
+            NextLabel = next is null ? null : $"S{next.Season}E{next.Number} · {next.Title}",
+            Next = next is null ? null : () => Task.FromResult<PlayRequest?>(Request(next)),
+        };
+    }
 
     private void OnBack(object sender, RoutedEventArgs e) => Navigator.Back();
 }

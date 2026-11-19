@@ -48,7 +48,7 @@
                     <TextBlock Text="Lecture" Style="{StaticResource VeltrioSectionTitle}" />
                 </StackPanel>
                 <TextBlock Style="{StaticResource VeltrioBody}"
-                           Text="Le lecteur s'appuie sur mpv, comme sur macOS : MKV, HEVC, HDR, pistes audio et sous-titres intégrés, décodage matériel quand la carte graphique le permet. Raccourcis : Espace pour lecture/pause, ← et → pour reculer de 10 s ou avancer de 30 s, ↑ et ↓ pour le volume, M pour couper le son, F pour le plein écran, Échap pour quitter." />
+                           Text="Le lecteur s'appuie sur mpv, comme sur macOS : MKV, HEVC, HDR, pistes audio et sous-titres intégrés, décodage matériel quand la carte graphique le permet. Raccourcis : Espace lecture/pause · ← → reculer de 10 s / avancer de 30 s · ↑ ↓ volume · M couper le son · Z X décaler les sous-titres · S passer l'intro · N épisode suivant · I infos média · Pg préc./Pg suiv. changer de chaîne · F plein écran · Échap quitter. Format d'image, zoom, décalages, tone mapping et profils sont dans le menu ⚙ du lecteur." />
             </StackPanel>
 
             <StackPanel Spacing="14">

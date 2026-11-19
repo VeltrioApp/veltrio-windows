@@ -37,7 +37,9 @@ public sealed class PlaylistRef
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 
     [JsonIgnore] public bool IsXtream => Xtream is not null;
-    [JsonIgnore] public string SourceLabel => IsXtream ? $"XTREAM · {Xtream!.BaseUrl}" : Url;
+    /// <summary>A .m3u file on this computer rather than a URL.</summary>
+    [JsonIgnore] public bool IsLocalFile => !IsXtream && Path.IsPathRooted(Url) && !Url.Contains("://");
+    [JsonIgnore] public string SourceLabel => IsXtream ? $"XTREAM · {Xtream!.BaseUrl}" : IsLocalFile ? $"FICHIER · {Url}" : Url;
 }
 
 public enum ChannelKind { Live, Movie, Series }

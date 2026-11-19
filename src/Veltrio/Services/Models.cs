@@ -219,6 +219,25 @@ public sealed class StreamItem
 
     public string? InfoHash => Stream.source is StreamSource.Torrent t ? t.infoHash : null;
 
+    /// <summary>Stremio's behaviorHints.bingeGroup: streams of the same
+    /// release across episodes, so "next episode" picks the same one.</summary>
+    public string? BingeGroup
+    {
+        get
+        {
+            if (Stream.behaviorHintsJson is not { Length: > 0 } json) return null;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                return doc.RootElement.TryGetProperty("bingeGroup", out var g) ? g.GetString() : null;
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return null;
+            }
+        }
+    }
+
     /// <summary>The debrid service that has this torrent cached, if any.</summary>
     public DebridProvider? CachedOn => InfoHash is { } h ? DebridService.CachedOn(h) : null;
     public bool IsCached => CachedOn is not null;
@@ -256,6 +275,11 @@ public sealed class PlayRequest
     /// overlay, zapping and catch-up in the player.</summary>
     public ChannelItem? Channel { get; init; }
     public PlaylistRef? Playlist { get; init; }
+
+    /// <summary>Series: what comes next ("S1E3 · Titre") and how to get a
+    /// request for it (its streams resolved), or null at the last episode.</summary>
+    public string? NextLabel { get; init; }
+    public Func<Task<PlayRequest?>>? Next { get; init; }
 
     /// <summary>A live channel (or a provider film/episode) as the player opens it.</summary>
     public static PlayRequest ForChannel(ChannelItem channel, PlaylistRef? playlist) => new()

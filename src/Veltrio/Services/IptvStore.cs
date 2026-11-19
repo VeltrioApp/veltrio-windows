@@ -53,6 +53,16 @@ public static class IptvStore
         return null;
     }
 
+    /// <summary>A .m3u / .m3u8 file on disk: read again each time it loads,
+    /// so edits to it show up.</summary>
+    public static string? AddLocalFile(string name, string path)
+    {
+        path = path.Trim().Trim('"');
+        if (!System.IO.File.Exists(path)) return "Fichier introuvable.";
+        Add(new PlaylistRef { Name = string.IsNullOrWhiteSpace(name) ? Path.GetFileNameWithoutExtension(path) : name.Trim(), Url = path });
+        return null;
+    }
+
     /// <summary>Checks the account against the server before keeping it.
     /// Returns an error message, or null.</summary>
     public static async Task<string?> AddXtreamAsync(string name, string host, string username, string password, string output)
@@ -117,34 +127,45 @@ public static class IptvStore
                 ChannelKind.Series => await XtreamClient.SeriesAsync(account),
                 _ => await XtreamClient.LiveAsync(account),
             }
-            : (await Client.LoadPlaylist(playlist.Url)).channels.Select(ChannelItem.From).ToList();
+            : playlist.IsLocalFile
+                ? Client.ParseInline(await System.IO.File.ReadAllTextAsync(playlist.Url)).channels.Select(ChannelItem.From).ToList()
+                : (await Client.LoadPlaylist(playlist.Url)).channels.Select(ChannelItem.From).ToList();
         // Channel numbers follow the playlist's order.
         for (var i = 0; i < items.Count; i++) items[i].Number = i + 1;
         return items;
     }
 
-    /// <summary>Live channels of every playlist, and the films and series
-    /// of Xtream accounts already browsed this session, whose name matches.</summary>
+    /// <summary>Live channels of every playlist whose name matches, then
+    /// the films and series of each Xtream account, searched on the
+    /// provider's server (as on macOS).</summary>
     public static async Task<IReadOnlyList<ChannelItem>> SearchAsync(string query)
     {
-        var results = new List<ChannelItem>();
-        foreach (var p in _playlists)
+        var perSource = await Task.WhenAll(_playlists.Select(async p =>
         {
+            var found = new List<ChannelItem>();
             try
             {
-                results.AddRange((await ItemsAsync(p)).Where(c => c.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase)).Take(40));
-                foreach (var kind in new[] { ChannelKind.Movie, ChannelKind.Series })
-                    if (_cache.TryGetValue((p.Id, kind), out var loaded) && loaded.IsCompletedSuccessfully)
-                        results.AddRange(XtreamClient.Match(loaded.Result, query));
+                found.AddRange((await ItemsAsync(p)).Where(c => XtreamClient.TitleMatches(c.Name, query)).Take(40));
+                if (p.Xtream is { } account)
+                {
+                    var vod = await XtreamClient.SearchAsync(account, query);
+                    // Keep the session's lists consistent: same objects for PlaylistOf.
+                    _searchHits[p.Id] = vod;
+                    found.AddRange(vod);
+                }
             }
             catch
             {
                 // An unreachable source just doesn't contribute.
             }
-        }
-        return results.Take(80).ToList();
+            return found;
+        }));
+        return perSource.SelectMany(r => r).Take(120).ToList();
     }
 
+    private static readonly Dictionary<Guid, IReadOnlyList<ChannelItem>> _searchHits = new();
+
     public static PlaylistRef? PlaylistOf(ChannelItem item) =>
-        _playlists.FirstOrDefault(p => _cache.Any(c => c.Key.Item1 == p.Id && c.Value.IsCompletedSuccessfully && c.Value.Result.Contains(item)));
+        _playlists.FirstOrDefault(p => (_searchHits.TryGetValue(p.Id, out var hits) && hits.Contains(item))
+            || _cache.Any(c => c.Key.Item1 == p.Id && c.Value.IsCompletedSuccessfully && c.Value.Result.Contains(item)));
 }
