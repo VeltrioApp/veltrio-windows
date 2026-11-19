@@ -79,7 +79,11 @@ public sealed partial class SearchPage : Page
     private void OnChannelClick(object sender, ItemClickEventArgs e)
     {
         var channel = (ChannelItem)e.ClickedItem;
-        Navigator.Play(new PlayRequest { Title = channel.Name, Subtitle = channel.Group, Url = channel.StreamUrl, IsLive = !channel.IsFile });
+        var playlist = IptvStore.PlaylistOf(channel);
+        if (channel.Kind == ChannelKind.Series && playlist is not null)
+            Navigator.Go(typeof(IptvSeriesPage), new IptvSeriesRequest(playlist, channel));
+        else
+            Navigator.Play(PlayRequest.ForChannel(channel, playlist));
     }
 
     private void OnBack(object sender, RoutedEventArgs e) => Navigator.Back();

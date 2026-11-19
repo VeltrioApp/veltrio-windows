@@ -60,7 +60,7 @@
 
             <StackPanel x:Name="ChannelSection" Spacing="14" Visibility="Collapsed">
                 <StackPanel Orientation="Horizontal" Spacing="14">
-                    <TextBlock Text="Chaînes" Style="{StaticResource VeltrioSectionTitle}" />
+                    <TextBlock Text="IPTV" Style="{StaticResource VeltrioSectionTitle}" />
                     <TextBlock x:Name="ChannelCount" Style="{StaticResource VeltrioEyebrow}" VerticalAlignment="Center" />
                 </StackPanel>
                 <ListView x:Name="ChannelList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnChannelClick"

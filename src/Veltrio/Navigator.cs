@@ -38,4 +38,13 @@ public static class Navigator
     }
 
     public static void Play(PlayRequest request) => Go(typeof(PlayerPage), request);
+
+    /// <summary>Another channel from inside the player: Back still returns
+    /// to where the player was opened from.</summary>
+    public static void Zap(PlayRequest request)
+    {
+        Go(typeof(PlayerPage), request);
+        var stack = Frame.BackStack;
+        if (stack.Count > 0 && stack[^1].SourcePageType == typeof(PlayerPage)) stack.RemoveAt(stack.Count - 1);
+    }
 }

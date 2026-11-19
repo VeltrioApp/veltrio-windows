@@ -162,7 +162,7 @@ public sealed partial class SourcesPage : Page
     {
         var row = Row();
         row.Children.Add(Logo(null, ""));
-        var texts = Texts(playlist.Name, playlist.Url, null);
+        var texts = Texts(playlist.Name, playlist.SourceLabel, null);
         Grid.SetColumn(texts, 1);
         row.Children.Add(texts);
         var remove = IconButton("", "Supprimer la playlist", () => { IptvStore.Remove(playlist); Refresh(); });
@@ -200,12 +200,8 @@ public sealed partial class SourcesPage : Page
 
     private void OnBrowseCatalog(object sender, RoutedEventArgs e) => Navigator.Go(typeof(AddonCatalogPage));
 
-    private void OnAddPlaylist(object sender, RoutedEventArgs e)
+    private async void OnAddPlaylist(object sender, RoutedEventArgs e)
     {
-        var error = IptvStore.Add(PlaylistName.Text, PlaylistUrl.Text);
-        ShowError(PlaylistError, error);
-        if (error is not null) return;
-        PlaylistName.Text = PlaylistUrl.Text = "";
-        Refresh();
+        if (await AddPlaylistDialog.ShowAsync(XamlRoot)) Refresh();
     }
 }

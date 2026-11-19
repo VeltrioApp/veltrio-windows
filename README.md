@@ -12,7 +12,13 @@ titles), French UI.
   source.
 - **Recherche**: across the addons' searchable catalogs and the IPTV channels.
 - **Collection**: saved and started titles, filters, watched / remove.
-- **Direct**: M3U playlists, channels by group.
+- **Direct**: Xtream Codes accounts (live, films, series and series pages,
+  replay) and M3U playlists (a provider's get.php link is added as Xtream).
+  TV layout: numbered channel list with what's on, the selected channel
+  large with now and up next; a guide grid. The XMLTV guide comes from
+  xmltv.php or the playlist's url-tvg header (gzip handled, channels
+  matched by id or name). In the player: now/next banner, the channel list
+  to zap through (Page Up / Page Down), replay of past programmes.
 - **Sources**: install from URL, enable, reorder, remove, suggestions;
   IPTV playlists; the addon catalogue (Stremio's official collection and
   the community site stremio-addons.net, one-click install).
@@ -29,7 +35,7 @@ titles), French UI.
   speed, full screen). Resume and progress, torrents through the core's
   engine. A log goes to `player.log` in the data folder.
 
-Not yet on Windows: Xtream Codes providers, media servers
+Not yet on Windows: media servers
 (Jellyfin/Plex/Emby), Trakt/SIMKL, EPG, subtitles, downloads, casting —
 their clients live in Swift on macOS, not in the core.
 

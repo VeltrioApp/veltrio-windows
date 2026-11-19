@@ -79,6 +79,9 @@ public sealed class PosterItem
 
     public string Subtitle => string.Join(" · ", new[] { Year, Rating is null ? null : $"★ {Rating}" }.Where(s => !string.IsNullOrEmpty(s)));
 
+    /// <summary>What screen readers announce for the list item.</summary>
+    public override string ToString() => Title;
+
     internal static PosterItem From(MetaPreview m, AddonInfo addon) => new()
     {
         Id = m.id,
@@ -172,6 +175,7 @@ public sealed class EpisodeItem
     public Microsoft.UI.Xaml.Visibility WatchedVisibility => Watched ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 
     public string Code => Season is { } s && Episode is { } e ? $"S{s} · E{e}" : "";
+    public override string ToString() => $"{Code} {Title}";
     public string ReleasedDate => Released is { Length: >= 10 } r ? r[..10] : Released ?? "";
 }
 
@@ -189,6 +193,7 @@ public sealed class StreamItem
     }
 
     public string Name => (Stream.name ?? AddonName).Replace('\n', ' ');
+    public override string ToString() => $"{Name} {Title}";
     public string Title => (Stream.title ?? Stream.description ?? "").Trim();
     public string Kind => Stream.source switch
     {
@@ -227,46 +232,6 @@ public sealed class StreamItem
     };
 }
 
-/// <summary>An M3U playlist the user added.</summary>
-public sealed class PlaylistRef
-{
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public string Name { get; set; } = "";
-    public string Url { get; set; } = "";
-    public DateTime AddedAt { get; set; } = DateTime.UtcNow;
-}
-
-public sealed class ChannelItem
-{
-    public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string StreamUrl { get; init; } = "";
-    public string? Logo { get; init; }
-    public string Group { get; init; } = "";
-
-    /// <summary>A playlist entry pointing at a file (provider VOD lists)
-    /// rather than a live stream: it gets a scrubber.</summary>
-    public bool IsFile
-    {
-        get
-        {
-            var path = Uri.TryCreate(StreamUrl, UriKind.Absolute, out var u) ? u.AbsolutePath : StreamUrl;
-            return path.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase)
-                || path.EndsWith(".avi", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".mov", StringComparison.OrdinalIgnoreCase)
-                || path.EndsWith(".webm", StringComparison.OrdinalIgnoreCase);
-        }
-    }
-
-    internal static ChannelItem From(IptvChannel c) => new()
-    {
-        Id = c.id,
-        Name = c.name,
-        StreamUrl = c.streamUrl,
-        Logo = string.IsNullOrWhiteSpace(c.logoUrl) ? null : c.logoUrl,
-        Group = string.IsNullOrWhiteSpace(c.group) ? "Sans groupe" : c.group!,
-    };
-}
-
 /// <summary>What the player is asked to open.</summary>
 public sealed class PlayRequest
 {
@@ -286,4 +251,25 @@ public sealed class PlayRequest
     public string? Background { get; init; }
     public AddonInfo? Addon { get; init; }
     public bool IsLive { get; init; }
+
+    /// <summary>Live TV: the channel and its playlist, for the guide
+    /// overlay, zapping and catch-up in the player.</summary>
+    public ChannelItem? Channel { get; init; }
+    public PlaylistRef? Playlist { get; init; }
+
+    /// <summary>A live channel (or a provider film/episode) as the player opens it.</summary>
+    public static PlayRequest ForChannel(ChannelItem channel, PlaylistRef? playlist) => new()
+    {
+        Title = channel.Name,
+        Subtitle = channel.Group,
+        Url = channel.StreamUrl,
+        IsLive = channel.Kind == ChannelKind.Live && !channel.IsFile,
+        Channel = channel,
+        Playlist = playlist,
+        Poster = channel.Logo,
+        // Provider films and episodes resume like any title ("iptv" never
+        // shows in Continue watching: there's no page to reopen).
+        ContentType = channel.Kind == ChannelKind.Live ? null : "iptv",
+        ContentId = channel.Kind == ChannelKind.Live ? null : channel.Id,
+    };
 }

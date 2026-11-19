@@ -40,6 +40,8 @@ public sealed partial class PlayerPage : Page
         AddAccelerator(Windows.System.VirtualKey.Up, () => _player?.SetVolume((_player?.Volume ?? 100) + 5));
         AddAccelerator(Windows.System.VirtualKey.Down, () => _player?.SetVolume((_player?.Volume ?? 100) - 5));
         AddAccelerator(Windows.System.VirtualKey.M, () => _player?.ToggleMute());
+        AddAccelerator(Windows.System.VirtualKey.PageUp, () => ZapBy(-1));
+        AddAccelerator(Windows.System.VirtualKey.PageDown, () => ZapBy(1));
         KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
         BuildSpeedMenu();
         // Keyboard focus on the page, not on Back: Space must pause, not "click".
@@ -62,6 +64,7 @@ public sealed partial class PlayerPage : Page
         LiveBadge.Visibility = request.IsLive ? Visibility.Visible : Visibility.Collapsed;
         ScrubRow.Visibility = request.IsLive ? Visibility.Collapsed : Visibility.Visible;
         BackButton.Visibility = ForwardButton.Visibility = request.IsLive ? Visibility.Collapsed : Visibility.Visible;
+        if (request.IsLive && request.Channel is not null) _ = SetUpLiveAsync(request.Channel, request.Playlist);
 
         PlayerLog.Reset();
         try
@@ -132,6 +135,118 @@ public sealed partial class PlayerPage : Page
             ? WatchStore.ResumePosition(type, id, _request.VideoId)
             : 0;
         _player.Load(_url, resume);
+    }
+
+    // -------------------- live TV --------------------
+
+    private List<ChannelRow> _zapRows = new();
+    private DispatcherQueueTimer? _epgTimer;
+
+    /// <summary>The guide banner, the playlist's channels to zap through
+    /// and, for Xtream channels with an archive, replay.</summary>
+    private async Task SetUpLiveAsync(ChannelItem channel, PlaylistRef? playlist)
+    {
+        ChannelsButton.Visibility = playlist is null ? Visibility.Collapsed : Visibility.Visible;
+        ReplayButton.Visibility = channel.HasCatchup && playlist?.IsXtream == true ? Visibility.Visible : Visibility.Collapsed;
+        _epgTimer = DispatcherQueue.CreateTimer();
+        _epgTimer.Interval = TimeSpan.FromSeconds(30);
+        _epgTimer.Tick += (_, _) => _ = UpdateEpgLineAsync(channel, playlist);
+        _epgTimer.Start();
+        await UpdateEpgLineAsync(channel, playlist);
+
+        if (playlist is null) return;
+        try
+        {
+            var all = await IptvStore.ItemsAsync(playlist);
+            var now = DateTime.UtcNow;
+            _zapRows = all.Select(c => new ChannelRow(c)).ToList();
+            foreach (var row in _zapRows) row.Refresh(now);
+            ZapList.ItemsSource = _zapRows;
+            ZapList.SelectedIndex = _zapRows.FindIndex(r => r.Channel.Id == channel.Id);
+            ChannelPanelTitle.Text = $"{playlist.Name.ToUpperInvariant()} · {all.Count} CHAÎNES";
+        }
+        catch
+        {
+            ChannelsButton.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private async Task UpdateEpgLineAsync(ChannelItem channel, PlaylistRef? playlist)
+    {
+        var now = DateTime.UtcNow;
+        string? line = null;
+        if (EpgStore.Current(channel, now) is { } current)
+        {
+            var next = EpgStore.Upcoming(channel, now).FirstOrDefault();
+            line = $"{current.TimeRange}  {current.Title}" + (next is null ? "" : $"     ·     À suivre {next.Start.ToLocalTime():HH:mm}  {next.Title}");
+        }
+        else if (playlist?.Xtream is { } account && channel.XtreamId is { } id)
+        {
+            var entries = await XtreamClient.ShortEpgAsync(account, id);
+            var now2 = DateTime.UtcNow;
+            var cur = entries.FirstOrDefault(p => p.Start <= now2 && now2 < p.End);
+            var next = entries.FirstOrDefault(p => p.Start > now2);
+            if (cur is not null)
+                line = $"{cur.Start.ToLocalTime():HH:mm} – {cur.End.ToLocalTime():HH:mm}  {cur.Title}"
+                       + (next is null ? "" : $"     ·     À suivre {next.Start.ToLocalTime():HH:mm}  {next.Title}");
+        }
+        if (_closing) return;
+        EpgLine.Text = line ?? "";
+        EpgLine.Visibility = line is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void OnToggleChannels(object sender, RoutedEventArgs e)
+    {
+        ChannelPanel.Visibility = ChannelPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        if (ChannelPanel.Visibility == Visibility.Visible && ZapList.SelectedItem is { } item) ZapList.ScrollIntoView(item);
+        ShowChrome(keep: ChannelPanel.Visibility == Visibility.Visible);
+    }
+
+    private void OnZapClick(object sender, ItemClickEventArgs e) => ZapTo(((ChannelRow)e.ClickedItem).Channel);
+
+    /// <summary>Previous / next channel (Page Up / Page Down).</summary>
+    private void ZapBy(int step)
+    {
+        if (_zapRows.Count == 0 || _request.Channel is null) return;
+        var index = _zapRows.FindIndex(r => r.Channel.Id == _request.Channel.Id);
+        if (index < 0) return;
+        ZapTo(_zapRows[(index + step + _zapRows.Count) % _zapRows.Count].Channel);
+    }
+
+    private void ZapTo(ChannelItem channel)
+    {
+        if (channel.Id == _request.Channel?.Id || _closing) return;
+        _closing = true;
+        Navigator.Zap(PlayRequest.ForChannel(channel, _request.Playlist));
+    }
+
+    private async void OnReplay(object sender, RoutedEventArgs e)
+    {
+        if (_request.Channel is not { XtreamId: { } id } channel || _request.Playlist?.Xtream is not { } account) return;
+        var menu = new MenuFlyout { Placement = FlyoutPlacementMode.Top };
+        menu.Items.Add(new MenuFlyoutItem { Text = "Chargement…", IsEnabled = false });
+        menu.ShowAt((FrameworkElement)sender);
+        ShowChrome(keep: true);
+        var programmes = await XtreamClient.CatchupAsync(account, id);
+        menu.Items.Clear();
+        if (programmes.Count == 0) menu.Items.Add(new MenuFlyoutItem { Text = "Aucun programme à revoir.", IsEnabled = false });
+        foreach (var p in programmes.Take(40))
+        {
+            var item = new MenuFlyoutItem { Text = $"{p.TimeRange}   {p.Title}" };
+            item.Click += (_, _) =>
+            {
+                _closing = true;
+                Navigator.Zap(new PlayRequest
+                {
+                    Title = channel.Name,
+                    Subtitle = $"Replay · {p.TimeRange} · {p.Title}",
+                    Url = XtreamClient.TimeshiftUrl(account, id, p),
+                    Channel = channel,
+                    Playlist = _request.Playlist,
+                });
+            };
+            menu.Items.Add(item);
+        }
     }
 
     // -------------------- player → UI --------------------
@@ -262,7 +377,7 @@ public sealed partial class PlayerPage : Page
     {
         if (_player is null || _player.IsPaused || Status.Visibility == Visibility.Visible) return;
         // Keep the bars while a menu is open.
-        if (AudioMenu.IsOpen || SubtitleMenu.IsOpen || SpeedMenu.IsOpen) { _hideTimer?.Start(); return; }
+        if (AudioMenu.IsOpen || SubtitleMenu.IsOpen || SpeedMenu.IsOpen || ChannelPanel.Visibility == Visibility.Visible) { _hideTimer?.Start(); return; }
         TopBar.Visibility = BottomBar.Visibility = Visibility.Collapsed;
         _player.SetSubtitleLift(false);
     }
@@ -323,6 +438,7 @@ public sealed partial class PlayerPage : Page
         ReportProgress();
         _progressTimer?.Stop();
         _hideTimer?.Stop();
+        _epgTimer?.Stop();
         // The render context goes before the mpv core.
         _surface?.Dispose();
         _surface = null;

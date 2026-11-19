@@ -85,20 +85,14 @@
                     <TextBlock Text="Playlists IPTV" Style="{StaticResource VeltrioSectionTitle}" />
                 </StackPanel>
                 <TextBlock Style="{StaticResource VeltrioBody}" FontSize="13"
-                           Text="Toute URL qui renvoie une playlist M3U fonctionne, y compris les liens /get.php?…&amp;type=m3u des fournisseurs. Les chaînes apparaissent dans Direct et dans la recherche. Les fournisseurs Xtream Codes arrivent bientôt sur Windows." />
+                           Text="Fournisseurs Xtream Codes (chaînes, films, séries, guide TV, replay) et playlists M3U. Les chaînes apparaissent dans Direct et dans la recherche." />
                 <StackPanel x:Name="PlaylistList" />
-                <Grid ColumnSpacing="14">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="220" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBox x:Name="PlaylistName" PlaceholderText="Nom (facultatif)" />
-                    <TextBox x:Name="PlaylistUrl" Grid.Column="1" PlaceholderText="URL M3U" FontFamily="{StaticResource VeltrioMono}" />
-                    <Button Grid.Column="2" Style="{StaticResource VeltrioGhostButton}" Padding="22,8" Click="OnAddPlaylist">
-                        <TextBlock Text="AJOUTER LA PLAYLIST" />
-                    </Button>
-                </Grid>
+                <Button Style="{StaticResource VeltrioGhostButton}" HorizontalAlignment="Left" Click="OnAddPlaylist">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <FontIcon Glyph="&#xE710;" FontSize="10" />
+                        <TextBlock Text="AJOUTER UNE SOURCE IPTV" />
+                    </StackPanel>
+                </Button>
                 <TextBlock x:Name="PlaylistError" Foreground="{StaticResource VeltrioDangerBrush}" TextWrapping="Wrap"
                            Visibility="Collapsed" />
             </StackPanel>

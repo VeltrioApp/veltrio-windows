@@ -1,69 +1,204 @@
 <Page
     x:Class="Veltrio.Pages.LivePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    NavigationCacheMode="Enabled">
 
-    <Grid Padding="48,32,0,0">
+    <Page.Resources>
+        <!-- {Binding}: see DetailPage.xaml about x:Bind in page templates. -->
+        <DataTemplate x:Key="ChannelRowTemplate">
+            <Grid Padding="10,8" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="34" />
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Number}" FontFamily="{StaticResource VeltrioMono}" FontSize="11"
+                           Foreground="{StaticResource VeltrioTextTertiaryBrush}" VerticalAlignment="Center" />
+                <Grid Grid.Column="1" Width="44" Height="30" Background="{StaticResource VeltrioSurfaceElevatedBrush}">
+                    <TextBlock Text="{Binding Initials}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" Foreground="{StaticResource VeltrioTextQuaternaryBrush}" />
+                    <Image Source="{Binding Logo}" Stretch="Uniform" Margin="3" />
+                </Grid>
+                <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                   Foreground="{StaticResource VeltrioTextPrimaryBrush}" MaxWidth="220" />
+                        <FontIcon Glyph="&#xE81C;" FontSize="10" Foreground="{StaticResource VeltrioAccentBrush}"
+                                  Visibility="{Binding CatchupVisibility}" ToolTipService.ToolTip="Replay disponible" />
+                    </StackPanel>
+                    <StackPanel Spacing="4" Visibility="{Binding NowVisibility}">
+                        <TextBlock Text="{Binding NowTitle}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                   Foreground="{StaticResource VeltrioTextTertiaryBrush}" />
+                        <ProgressBar Value="{Binding NowProgress}" Maximum="100" MinHeight="2" Height="2" CornerRadius="0"
+                                     Background="{StaticResource VeltrioBorderBrush}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="VodTemplate">
+            <StackPanel Width="160" Spacing="8">
+                <Grid Height="240" Background="#111111" BorderBrush="#14FFFFFF" BorderThickness="1">
+                    <FontIcon Glyph="&#xE8B2;" FontSize="24" Foreground="#42FFFFFF" />
+                    <Image Source="{Binding Logo}" Stretch="UniformToFill" />
+                </Grid>
+                <TextBlock Text="{Binding Name}" FontFamily="Georgia" FontSize="13" FontWeight="SemiBold" Foreground="#FAF7F2"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontFamily="Cascadia Mono, Consolas" FontSize="10" Foreground="#6BFFFFFF"
+                           TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Padding="48,24,0,0">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid Padding="0,0,48,24">
-            <StackPanel Spacing="10">
+        <!-- Header: playlist, add, refresh, search. -->
+        <Grid Padding="0,0,48,14" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Spacing="6">
                 <TextBlock x:Name="Eyebrow" Text="DIRECT" Style="{StaticResource VeltrioAccentEyebrow}" />
-                <TextBlock Text="TV en direct" Style="{StaticResource VeltrioPageTitle}" />
+                <TextBlock x:Name="TitleText" Text="TV en direct" Style="{StaticResource VeltrioPageTitle}" FontSize="34" />
             </StackPanel>
-            <StackPanel x:Name="Toolbar" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right"
-                        VerticalAlignment="Bottom" Visibility="Collapsed">
-                <ComboBox x:Name="PlaylistPicker" MinWidth="220" SelectionChanged="OnPlaylistChanged" />
-                <Button Style="{StaticResource VeltrioLinkButton}" Padding="6" Click="OnRefresh" ToolTipService.ToolTip="Actualiser">
+            <StackPanel x:Name="Toolbar" Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom">
+                <ProgressRing x:Name="Loading" IsActive="False" Width="18" Height="18" />
+                <ComboBox x:Name="PlaylistPicker" MinWidth="200" SelectionChanged="OnPlaylistChanged"
+                          AutomationProperties.Name="Playlist" />
+                <Button Style="{StaticResource VeltrioLinkButton}" Padding="6" Click="OnRefresh" ToolTipService.ToolTip="Actualiser"
+                        AutomationProperties.Name="Actualiser">
                     <FontIcon Glyph="&#xE72C;" FontSize="14" />
                 </Button>
-                <TextBox x:Name="Filter" PlaceholderText="Rechercher une chaîne" Width="260" TextChanged="OnFilterChanged" />
+                <Button Style="{StaticResource VeltrioLinkButton}" Click="OnAddPlaylist" Foreground="{StaticResource VeltrioAccentBrush}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE710;" FontSize="10" />
+                        <TextBlock Text="AJOUTER" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
-            <Border Style="{StaticResource VeltrioRule}" VerticalAlignment="Bottom" Margin="0,0,0,-24" />
         </Grid>
 
-        <!-- No playlist yet. -->
-        <StackPanel x:Name="EmptyState" Grid.Row="1" Spacing="18" Padding="0,24,48,0" MaxWidth="560" HorizontalAlignment="Left"
+        <!-- Mode (Xtream), view (list / guide), group, search. -->
+        <Grid x:Name="FilterBar" Grid.Row="1" Padding="0,0,48,14" ColumnSpacing="10" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel x:Name="ModeChips" Orientation="Horizontal" Spacing="8" Margin="0,0,14,0" />
+            <StackPanel x:Name="ViewChips" Grid.Column="1" Orientation="Horizontal" Spacing="8" />
+            <ComboBox x:Name="GroupPicker" Grid.Column="3" MinWidth="220" SelectionChanged="OnGroupChanged"
+                      AutomationProperties.Name="Groupe" />
+            <TextBox x:Name="Filter" Grid.Column="4" Width="240" PlaceholderText="Rechercher une chaîne" TextChanged="OnFilterChanged" />
+        </Grid>
+
+        <!-- No source yet. -->
+        <StackPanel x:Name="EmptyState" Grid.Row="2" Spacing="18" Padding="0,24,48,0" MaxWidth="600" HorizontalAlignment="Left"
                     Visibility="Collapsed">
             <TextBlock Text="Silence radio." Style="{StaticResource VeltrioPageTitle}" FontSize="38" />
             <TextBlock Style="{StaticResource VeltrioBody}"
-                       Text="Ajoutez l'URL d'une playlist M3U pour regarder la télé. Les identifiants ne quittent jamais cet appareil." />
-            <Button Style="{StaticResource VeltrioPrimaryButton}" Click="OnOpenSources" HorizontalAlignment="Left">
+                       Text="Connectez un fournisseur Xtream Codes ou collez l'URL d'une playlist M3U. Les identifiants ne quittent jamais cet appareil." />
+            <Button Style="{StaticResource VeltrioPrimaryButton}" Click="OnAddPlaylist" HorizontalAlignment="Left">
                 <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Text="AJOUTER UNE PLAYLIST" />
-                    <FontIcon Glyph="&#xE72A;" FontSize="10" />
+                    <FontIcon Glyph="&#xE710;" FontSize="11" />
+                    <TextBlock Text="AJOUTER UNE SOURCE" />
                 </StackPanel>
             </Button>
         </StackPanel>
 
-        <Grid x:Name="Browser" Grid.Row="1" Visibility="Collapsed" Margin="0,24,0,0">
+        <TextBlock x:Name="Message" Grid.Row="2" Style="{StaticResource VeltrioBody}" Visibility="Collapsed" Margin="0,8,48,0" />
+
+        <!-- Live, list view: numbered channels left, the selected one large. -->
+        <Grid x:Name="LiveView" Grid.Row="2" Visibility="Collapsed" BorderBrush="{StaticResource VeltrioBorderBrush}" BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240" />
+                <ColumnDefinition Width="400" />
+                <ColumnDefinition Width="1" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
+            <ListView x:Name="ChannelList" SelectionMode="Single" ItemTemplate="{StaticResource ChannelRowTemplate}"
+                      ItemContainerStyle="{StaticResource VeltrioRowListItem}" SelectionChanged="OnChannelSelected"
+                      DoubleTapped="OnChannelDoubleTapped" KeyDown="OnChannelKeyDown" Padding="0,6,0,40" />
+            <Rectangle Grid.Column="1" Fill="{StaticResource VeltrioBorderBrush}" />
 
-            <ListView x:Name="Groups" SelectionMode="Single" SelectionChanged="OnGroupChanged" Padding="0,0,0,40">
-                <ListView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Padding="0,2">
-                            <TextBlock Text="{Binding Name}" FontSize="13" TextTrimming="CharacterEllipsis" Margin="0,0,40,0" />
-                            <TextBlock Text="{Binding Count}" HorizontalAlignment="Right" FontFamily="{StaticResource VeltrioMono}"
-                                       FontSize="10" Foreground="{StaticResource VeltrioTextTertiaryBrush}" VerticalAlignment="Center" />
-                        </Grid>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
-
-            <Grid Grid.Column="1" Padding="28,0,0,0">
-                <ProgressRing x:Name="Loading" IsActive="False" Width="26" Height="26" HorizontalAlignment="Left" VerticalAlignment="Top" />
-                <TextBlock x:Name="Message" Style="{StaticResource VeltrioBody}" Visibility="Collapsed" />
-                <GridView x:Name="Channels" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnChannelClick"
-                          ItemTemplate="{StaticResource ChannelTemplate}" ItemContainerStyle="{StaticResource VeltrioBareGridItem}"
-                          Padding="0,0,30,40" />
-            </Grid>
+            <ScrollViewer Grid.Column="2" Padding="36,18,48,40">
+                <StackPanel x:Name="Hero" Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
+                    <Grid x:Name="HeroPicture" Background="{StaticResource VeltrioSurfaceBrush}" MaxHeight="340">
+                        <Image x:Name="HeroImage" Stretch="UniformToFill" />
+                        <Image x:Name="HeroLogo" Stretch="Uniform" Margin="80,50" />
+                        <Border Background="{StaticResource VeltrioDangerBrush}" Padding="8,3" Margin="14"
+                                HorizontalAlignment="Left" VerticalAlignment="Top">
+                            <TextBlock Text="● EN DIRECT" FontSize="9" FontWeight="Bold" CharacterSpacing="200" Foreground="White" />
+                        </Border>
+                        <TextBlock x:Name="HeroNumber" Margin="14" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                   FontFamily="{StaticResource VeltrioMono}" FontSize="12" Foreground="#E6FFFFFF" />
+                    </Grid>
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="4">
+                            <TextBlock x:Name="HeroGroup" Style="{StaticResource VeltrioEyebrow}" />
+                            <TextBlock x:Name="HeroName" Style="{StaticResource VeltrioPageTitle}" FontSize="30" MaxLines="2" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom">
+                            <Button x:Name="CatchupButton" Style="{StaticResource VeltrioGhostButton}" Click="OnCatchup" Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE81C;" FontSize="11" />
+                                    <TextBlock Text="REVOIR" />
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource VeltrioPrimaryButton}" Click="OnWatch">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <FontIcon Glyph="&#xE768;" FontSize="11" />
+                                    <TextBlock Text="REGARDER" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel x:Name="NowPanel" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="EN CE MOMENT" Style="{StaticResource VeltrioAccentEyebrow}" />
+                            <TextBlock x:Name="NowTime" Style="{StaticResource VeltrioCaption}" />
+                        </StackPanel>
+                        <TextBlock x:Name="NowTitle" FontFamily="{StaticResource VeltrioSerif}" FontSize="20" FontWeight="SemiBold"
+                                   Foreground="{StaticResource VeltrioTextPrimaryBrush}" TextWrapping="Wrap" />
+                        <ProgressBar x:Name="NowProgress" Maximum="100" MinHeight="2" Height="2" CornerRadius="0"
+                                     Background="{StaticResource VeltrioBorderBrush}" />
+                        <TextBlock x:Name="NowDescription" Style="{StaticResource VeltrioBody}" FontSize="13" MaxLines="4"
+                                   TextTrimming="WordEllipsis" />
+                    </StackPanel>
+                    <TextBlock x:Name="NoGuide" Style="{StaticResource VeltrioBody}" FontSize="13"
+                               Text="Pas d'informations de programme pour cette chaîne." />
+                    <StackPanel x:Name="UpNextPanel" Spacing="8">
+                        <Border Style="{StaticResource VeltrioRule}" Margin="0,4,0,4" />
+                        <TextBlock Text="À SUIVRE" Style="{StaticResource VeltrioEyebrow}" />
+                        <StackPanel x:Name="UpNextList" Spacing="8" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
+
+        <!-- Live, guide view: channels × time. -->
+        <Grid x:Name="GuideView" Grid.Row="2" Visibility="Collapsed" BorderBrush="{StaticResource VeltrioBorderBrush}" BorderThickness="0,1,0,0">
+            <ScrollViewer x:Name="GuideScroller" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollMode="Enabled" ZoomMode="Disabled" ViewChanged="OnGuideScrolled">
+                <Canvas x:Name="GuideCanvas" HorizontalAlignment="Left" VerticalAlignment="Top" />
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Xtream films / series. -->
+        <GridView x:Name="VodGrid" Grid.Row="2" Visibility="Collapsed" SelectionMode="None" IsItemClickEnabled="True"
+                  ItemClick="OnVodClick" ItemTemplate="{StaticResource VodTemplate}"
+                  ItemContainerStyle="{StaticResource VeltrioBareGridItem}" Padding="0,8,30,40" />
     </Grid>
 </Page>

@@ -2,21 +2,31 @@ using uniffi.veltrio;
 
 namespace Veltrio.Services;
 
-/// <summary>M3U playlists and their channels, through the core's parser.
-/// Xtream Codes providers are macOS-only for now: their client lives in
-/// Swift, not in the core.</summary>
+/// <summary>IPTV sources: M3U playlists through the core's parser, and
+/// Xtream Codes accounts (live, films, series) through
+/// <see cref="XtreamClient"/>. Xtream passwords are kept encrypted.</summary>
 public static class IptvStore
 {
     private const string File = "iptv-playlists.json";
     private const string SelectedFile = "iptv-selected.json";
 
     private static readonly IptvClient Client = new();
-    private static readonly List<PlaylistRef> _playlists = Storage.Load(File, new List<PlaylistRef>());
-    private static readonly Dictionary<Guid, Task<IReadOnlyList<ChannelItem>>> _channels = new();
+    private static readonly List<PlaylistRef> _playlists = LoadPlaylists();
+    private static readonly Dictionary<(Guid, ChannelKind), Task<IReadOnlyList<ChannelItem>>> _cache = new();
 
     public static event Action? Changed;
 
     public static IReadOnlyList<PlaylistRef> Playlists => _playlists;
+
+    private static List<PlaylistRef> LoadPlaylists()
+    {
+        var list = Storage.Load(File, new List<PlaylistRef>());
+        foreach (var p in list)
+            if (p.Xtream is { } x) x.Password = SecretStore.Get(SecretName(p.Id)) ?? "";
+        return list;
+    }
+
+    private static string SecretName(Guid id) => $"xtream.{id}";
 
     public static PlaylistRef? Selected
     {
@@ -32,47 +42,89 @@ public static class IptvStore
         }
     }
 
-    public static string? Add(string name, string url)
+    // -------------------- adding / removing --------------------
+
+    public static string? AddM3u(string name, string url)
     {
         url = url.Trim();
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
             return "L'URL de la playlist doit commencer par http:// ou https://.";
+        Add(new PlaylistRef { Name = string.IsNullOrWhiteSpace(name) ? uri.Host : name.Trim(), Url = url });
+        return null;
+    }
+
+    /// <summary>Checks the account against the server before keeping it.
+    /// Returns an error message, or null.</summary>
+    public static async Task<string?> AddXtreamAsync(string name, string host, string username, string password, string output)
+    {
+        var account = new XtreamAccount { Host = host.Trim(), Username = username.Trim(), Password = password, Output = output };
+        if (account.BaseUrl.Length == 0 || account.Username.Length == 0 || password.Length == 0)
+            return "Renseignez le serveur, l'utilisateur et le mot de passe.";
+        try
+        {
+            await XtreamClient.VerifyAsync(account);
+        }
+        catch (Exception ex)
+        {
+            return ex is HttpRequestException or TaskCanceledException ? $"Serveur injoignable : {ex.Message}" : ex.Message;
+        }
         var playlist = new PlaylistRef
         {
-            Name = string.IsNullOrWhiteSpace(name) ? uri.Host : name.Trim(),
-            Url = url,
+            Name = string.IsNullOrWhiteSpace(name) ? new Uri(account.BaseUrl).Host : name.Trim(),
+            Xtream = account,
         };
+        SecretStore.Set(SecretName(playlist.Id), password);
+        Add(playlist);
+        return null;
+    }
+
+    private static void Add(PlaylistRef playlist)
+    {
         _playlists.Add(playlist);
         Storage.Save(File, _playlists);
         Selected = playlist;
-        return null;
     }
 
     public static void Remove(PlaylistRef playlist)
     {
         _playlists.RemoveAll(p => p.Id == playlist.Id);
-        _channels.Remove(playlist.Id);
+        foreach (var key in _cache.Keys.Where(k => k.Item1 == playlist.Id).ToList()) _cache.Remove(key);
+        if (playlist.IsXtream) SecretStore.Set(SecretName(playlist.Id), null);
         Storage.Save(File, _playlists);
         Changed?.Invoke();
     }
 
-    /// <summary>The playlist's channels, loaded once per session unless
-    /// <paramref name="refresh"/> is set.</summary>
-    public static Task<IReadOnlyList<ChannelItem>> ChannelsAsync(PlaylistRef playlist, bool refresh = false)
+    // -------------------- content --------------------
+
+    /// <summary>Live channels (M3U or Xtream), or an Xtream account's films
+    /// or series. Loaded once per session unless <paramref name="refresh"/>.</summary>
+    public static Task<IReadOnlyList<ChannelItem>> ItemsAsync(PlaylistRef playlist, ChannelKind kind = ChannelKind.Live, bool refresh = false)
     {
-        if (!refresh && _channels.TryGetValue(playlist.Id, out var cached) && !cached.IsFaulted) return cached;
-        var task = LoadAsync(playlist.Url);
-        _channels[playlist.Id] = task;
+        if (!playlist.IsXtream && kind != ChannelKind.Live) return Task.FromResult<IReadOnlyList<ChannelItem>>(Array.Empty<ChannelItem>());
+        var key = (playlist.Id, kind);
+        if (!refresh && _cache.TryGetValue(key, out var cached) && !cached.IsFaulted) return cached;
+        var task = LoadAsync(playlist, kind);
+        _cache[key] = task;
         return task;
     }
 
-    private static async Task<IReadOnlyList<ChannelItem>> LoadAsync(string url)
+    private static async Task<IReadOnlyList<ChannelItem>> LoadAsync(PlaylistRef playlist, ChannelKind kind)
     {
-        var playlist = await Client.LoadPlaylist(url);
-        return playlist.channels.Select(ChannelItem.From).ToList();
+        IReadOnlyList<ChannelItem> items = playlist.Xtream is { } account
+            ? kind switch
+            {
+                ChannelKind.Movie => await XtreamClient.MoviesAsync(account),
+                ChannelKind.Series => await XtreamClient.SeriesAsync(account),
+                _ => await XtreamClient.LiveAsync(account),
+            }
+            : (await Client.LoadPlaylist(playlist.Url)).channels.Select(ChannelItem.From).ToList();
+        // Channel numbers follow the playlist's order.
+        for (var i = 0; i < items.Count; i++) items[i].Number = i + 1;
+        return items;
     }
 
-    /// <summary>Channels of every loaded playlist whose name matches, for search.</summary>
+    /// <summary>Live channels of every playlist, and the films and series
+    /// of Xtream accounts already browsed this session, whose name matches.</summary>
     public static async Task<IReadOnlyList<ChannelItem>> SearchAsync(string query)
     {
         var results = new List<ChannelItem>();
@@ -80,14 +132,19 @@ public static class IptvStore
         {
             try
             {
-                var channels = await ChannelsAsync(p);
-                results.AddRange(channels.Where(c => c.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase)));
+                results.AddRange((await ItemsAsync(p)).Where(c => c.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase)).Take(40));
+                foreach (var kind in new[] { ChannelKind.Movie, ChannelKind.Series })
+                    if (_cache.TryGetValue((p.Id, kind), out var loaded) && loaded.IsCompletedSuccessfully)
+                        results.AddRange(XtreamClient.Match(loaded.Result, query));
             }
             catch
             {
-                // An unreachable playlist just doesn't contribute.
+                // An unreachable source just doesn't contribute.
             }
         }
-        return results.Take(60).ToList();
+        return results.Take(80).ToList();
     }
+
+    public static PlaylistRef? PlaylistOf(ChannelItem item) =>
+        _playlists.FirstOrDefault(p => _cache.Any(c => c.Key.Item1 == p.Id && c.Value.IsCompletedSuccessfully && c.Value.Result.Contains(item)));
 }

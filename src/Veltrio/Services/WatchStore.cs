@@ -22,6 +22,7 @@ public sealed class WatchEntry
     public DateTime LastWatchedAt { get; set; } = DateTime.UtcNow;
 
     public string Key => $"{Type}|{ContentId}";
+    public override string ToString() => Name;
 
     private (double Pos, double Dur) Current =>
         Type == "series" && LastEpisodeId is { } last && Episodes.TryGetValue(last, out var ep)

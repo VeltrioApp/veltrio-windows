@@ -19,6 +19,7 @@ public sealed class CatalogEntry
     public bool Installing { get; set; }
     public string InstallLabel => Installing ? "INSTALLATION…" : IsInstalled ? "INSTALLÉ" : "INSTALLER";
     public bool CanInstall => !Installing && !IsInstalled;
+    public override string ToString() => Name;
 }
 
 /// <summary>Browse and install addons: Stremio's official collection, or

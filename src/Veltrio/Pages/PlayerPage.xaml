@@ -8,6 +8,27 @@
 
     <Page.Resources>
         <local:TimeLabelConverter x:Key="TimeLabel" />
+        <DataTemplate x:Key="ZapTemplate">
+            <Grid Padding="12,8" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="32" />
+                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Number}" FontFamily="{StaticResource VeltrioMono}" FontSize="11" Foreground="#99FFFFFF"
+                           VerticalAlignment="Center" />
+                <Grid Grid.Column="1" Width="40" Height="28" Background="#22FFFFFF">
+                    <TextBlock Text="{Binding Initials}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" Foreground="#66FFFFFF" />
+                    <Image Source="{Binding Logo}" Stretch="Uniform" Margin="3" />
+                </Grid>
+                <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="#FAF7F2" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding NowTitle}" FontSize="11" Foreground="#99FFFFFF" TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding NowVisibility}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
         <Style x:Key="PlayerIconButton" TargetType="Button" BasedOn="{StaticResource VeltrioLinkButton}">
             <Setter Property="Foreground" Value="#FAF7F2" />
             <Setter Property="Padding" Value="8" />
@@ -39,12 +60,26 @@
                     <TextBlock x:Name="TitleText" FontFamily="{StaticResource VeltrioSerif}" FontSize="20" FontWeight="SemiBold"
                                Foreground="#FAF7F2" />
                     <TextBlock x:Name="SubtitleText" Style="{StaticResource VeltrioCaption}" Foreground="#BFFFFFFF" />
+                    <TextBlock x:Name="EpgLine" FontSize="12" Foreground="#E6FFFFFF" Margin="0,4,0,0" Visibility="Collapsed"
+                               TextTrimming="CharacterEllipsis" MaxWidth="900" />
                 </StackPanel>
                 <Border x:Name="LiveBadge" Background="{StaticResource VeltrioDangerBrush}" Padding="8,2" VerticalAlignment="Center"
                         Visibility="Collapsed">
                     <TextBlock Text="DIRECT" FontSize="9" FontWeight="Bold" CharacterSpacing="200" Foreground="White" />
                 </Border>
             </StackPanel>
+        </Grid>
+
+        <!-- Live: the playlist's channels, to zap without leaving. -->
+        <Grid x:Name="ChannelPanel" Width="380" HorizontalAlignment="Right" Background="#E6080808" Visibility="Collapsed"
+              Padding="0,70,0,110">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock x:Name="ChannelPanelTitle" Style="{StaticResource VeltrioAccentEyebrow}" Margin="16,0,16,10" />
+            <ListView x:Name="ZapList" Grid.Row="1" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="OnZapClick"
+                      ItemTemplate="{StaticResource ZapTemplate}" ItemContainerStyle="{StaticResource VeltrioRowListItem}" />
         </Grid>
 
         <!-- Centre: preparing, buffering, or what went wrong. -->
@@ -112,6 +147,14 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="ReplayButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Revoir un programme"
+                            AutomationProperties.Name="Revoir" Visibility="Collapsed" Click="OnReplay">
+                        <FontIcon Glyph="&#xE81C;" FontSize="16" />
+                    </Button>
+                    <Button x:Name="ChannelsButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Chaînes (Pg préc. / Pg suiv.)"
+                            AutomationProperties.Name="Chaînes" Visibility="Collapsed" Click="OnToggleChannels">
+                        <FontIcon Glyph="&#xE8FD;" FontSize="16" />
+                    </Button>
                     <Button x:Name="AudioButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Audio"
                             AutomationProperties.Name="Pistes audio">
                         <FontIcon Glyph="&#xE8D6;" FontSize="16" />
