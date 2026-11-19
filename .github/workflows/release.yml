@@ -44,6 +44,9 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-dev"; fi
           echo "VERSION=$v" >> "$GITHUB_ENV"
       - run: dotnet publish src/Veltrio/Veltrio.csproj -c Release -p:Platform=x64 -p:Version=$VERSION -o dist/Veltrio
+      # Without the app's .pri (its compiled XAML) the app dies at launch.
+      - name: Check the output
+        run: for f in Veltrio.exe Veltrio.pri veltrio_core.dll libmpv-2.dll av_libglesv2.dll cacert.pem; do test -f "dist/Veltrio/$f" || { echo "missing $f"; exit 1; }; done
       - run: 7z a -tzip "Veltrio-$VERSION-win-x64.zip" ./dist/Veltrio/*
       - uses: actions/upload-artifact@v4
         with:

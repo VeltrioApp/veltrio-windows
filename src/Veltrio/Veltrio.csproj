@@ -14,6 +14,9 @@
          SDK runtime ships with the app instead of being a separate install. -->
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- Generates Veltrio.pri (the compiled XAML) for publish too; without
+         it a published unpackaged app dies at startup loading App.xaml. -->
+    <EnableMsixTooling>true</EnableMsixTooling>
     <SelfContained>true</SelfContained>
     <!-- The UniFFI bindings use unsafe code for the FFI buffers. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
