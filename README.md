@@ -51,6 +51,8 @@ Data lives in `%LOCALAPPDATA%\Veltrio` (JSON, same shapes as macOS).
 Unpackaged and self-contained for now (no MSIX, no separate Windows App
 SDK runtime install).
 
+Where the port stands and what comes next: [STATUS.md](STATUS.md).
+
 ## Build
 
 Windows 10 1904+ / 11, the .NET 10 SDK, and `gh` signed in with access to
