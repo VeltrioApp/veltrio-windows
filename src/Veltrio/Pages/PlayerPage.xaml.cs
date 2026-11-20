@@ -201,6 +201,11 @@ public sealed partial class PlayerPage : Page
             _zapRows = all.Select(c => new ChannelRow(c) { IsCurrent = c.Id == channel.Id }).ToList();
             foreach (var row in _zapRows) row.Refresh(now);
             // Sections, opened on the channel's own.
+            // The card at the top: the bouquet and the channel on screen.
+            CurrentChannelGroup.Text = (channel.Group.Length > 0 ? $"EN COURS · {channel.Group}" : "EN COURS").ToUpperInvariant();
+            CurrentChannelName.Text = channel.NumberLabel.Length > 0 ? $"{channel.NumberLabel}  {channel.Name}" : channel.Name;
+            if (Uri.TryCreate(channel.Logo, UriKind.Absolute, out var logo))
+                CurrentChannelLogo.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(logo);
             _filteringChannels = true;
             ChannelGroups.Items.Clear();
             ChannelGroups.Items.Add("Toutes les chaînes");
@@ -216,6 +221,18 @@ public sealed partial class PlayerPage : Page
     }
 
     private bool _filteringChannels;
+
+    /// <summary>Back to the bouquet of the channel on screen, scrolled to it.</summary>
+    private void OnShowCurrentChannel(object sender, RoutedEventArgs e)
+    {
+        if (_request.Channel is not { } channel) return;
+        _filteringChannels = true;
+        ChannelSearch.Text = "";
+        ChannelGroups.SelectedItem = channel.Group.Length > 0 && ChannelGroups.Items.Contains(channel.Group) ? channel.Group : ChannelGroups.Items[0];
+        _filteringChannels = false;
+        FilterChannels();
+        if (_zapRows.FirstOrDefault(r => r.IsCurrent) is { } current) ZapList.ScrollIntoView(current, ScrollIntoViewAlignment.Leading);
+    }
 
     private void OnChannelFilter(object sender, object e)
     {
