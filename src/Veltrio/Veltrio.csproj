@@ -37,6 +37,24 @@
     <PackageReference Include="Avalonia.Angle.Windows.Natives" Version="2.1.25547.20250602" />
   </ItemGroup>
 
+  <!-- Account services' app ids, from environment variables; empty = the
+       service is off. Trakt: an app at trakt.tv/oauth/applications.
+       SIMKL: a client id from simkl.com/settings/developer. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>TraktClientId</_Parameter1>
+      <_Parameter2>$(VELTRIO_TRAKT_CLIENT_ID)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>TraktClientSecret</_Parameter1>
+      <_Parameter2>$(VELTRIO_TRAKT_CLIENT_SECRET)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>SimklClientId</_Parameter1>
+      <_Parameter2>$(VELTRIO_SIMKL_CLIENT_ID)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="Assets\Veltrio.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

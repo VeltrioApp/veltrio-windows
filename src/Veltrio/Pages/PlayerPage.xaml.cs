@@ -21,6 +21,7 @@ public sealed partial class PlayerPage : Page
     private static readonly double[] Speeds = { 0.5, 0.75, 1, 1.25, 1.5, 2 };
 
     private PlayRequest _request = null!;
+    private Scrobbler _scrobbler = null!;
     private string? _url;
     private MpvPlayer? _player;
     private VideoSurface? _surface;
@@ -66,6 +67,7 @@ public sealed partial class PlayerPage : Page
     {
         if (e.Parameter is not PlayRequest request) return;
         _request = request;
+        _scrobbler = new Scrobbler(request);
         TitleText.Text = request.Title;
         SubtitleText.Text = request.Subtitle ?? "";
         LiveBadge.Visibility = request.IsLive ? Visibility.Visible : Visibility.Collapsed;
@@ -618,6 +620,7 @@ public sealed partial class PlayerPage : Page
             case "pause":
                 PlayPauseIcon.Glyph = p.IsPaused ? "" : "";
                 ShowChrome(keep: p.IsPaused);
+                if (!_request.IsLive) _scrobbler.Update(p.Position, p.Duration, p.IsPaused);
                 break;
             case "buffering":
                 if (_loaded)
@@ -712,6 +715,7 @@ public sealed partial class PlayerPage : Page
     {
         if (_player is null || _request.IsLive) return;
         if (_player.Duration > 0 && _player.Position > 0) WatchStore.ReportProgress(_request, _player.Position, _player.Duration);
+        _scrobbler.Update(_player.Position, _player.Duration, _player.IsPaused);
     }
 
     // -------------------- chrome --------------------
@@ -793,6 +797,7 @@ public sealed partial class PlayerPage : Page
     {
         _closing = true;
         ReportProgress();
+        if (_player is not null) _scrobbler.Stop(_player.Position, _player.Duration);
         _progressTimer?.Stop();
         _hideTimer?.Stop();
         _epgTimer?.Stop();

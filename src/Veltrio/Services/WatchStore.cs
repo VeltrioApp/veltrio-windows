@@ -53,6 +53,19 @@ public sealed class WatchEntry
     public string StatusLabel => Watched ? "VU" : IsStarted ? "EN COURS" : InLibrary ? "ENREGISTRÉ" : "";
 }
 
+/// <summary>A title as an account reports it, before it's merged into the
+/// library. Position and duration are seconds, films only: accounts don't
+/// agree on per-episode progress.</summary>
+public sealed record ImportedWatchItem(string Type, string Id, string Name)
+{
+    public string? Poster { get; init; }
+    public bool InLibrary { get; init; }
+    public bool Watched { get; init; }
+    public double? Position { get; init; }
+    public double? Duration { get; init; }
+    public DateTime? LastWatched { get; init; }
+}
+
 public sealed class EpisodeProgress
 {
     public int? Season { get; set; }
@@ -153,6 +166,43 @@ public static class WatchStore
         e.Position = watched ? Math.Max(e.Position, e.Duration) : 0;
         e.LastWatchedAt = DateTime.UtcNow;
         Save();
+    }
+
+    /// <summary>Folds titles from an account (Stremio, Trakt, SIMKL) into
+    /// the library. Additive only: an import never unsaves, unwatches or
+    /// rewinds what's already here, so importing twice is safe. Returns
+    /// how many titles changed.</summary>
+    public static int Merge(IEnumerable<ImportedWatchItem> items)
+    {
+        var changed = 0;
+        foreach (var item in items)
+        {
+            var key = $"{item.Type}|{item.Id}";
+            var isNew = !Entries.TryGetValue(key, out var e);
+            e ??= new WatchEntry { Type = item.Type, ContentId = item.Id };
+            var before = isNew ? "" : System.Text.Json.JsonSerializer.Serialize(e);
+            if (string.IsNullOrEmpty(e.Name)) e.Name = item.Name;
+            e.Poster ??= item.Poster;
+            if (item.InLibrary && !e.InLibrary)
+            {
+                e.InLibrary = true;
+                e.AddedAt = item.LastWatched ?? DateTime.UtcNow;
+            }
+            if (item.Watched) e.Watched = true;
+            if (item.Type == "movie" && item.Position is { } pos && item.Duration is { } dur && dur > 0 && pos > e.Position)
+            {
+                e.Position = pos;
+                e.Duration = dur;
+            }
+            if (item.LastWatched is { } date && (isNew || date > e.LastWatchedAt)) e.LastWatchedAt = date;
+            if (isNew || System.Text.Json.JsonSerializer.Serialize(e) != before)
+            {
+                Entries[key] = e;
+                changed++;
+            }
+        }
+        if (changed > 0) Save();
+        return changed;
     }
 
     public static void Remove(string type, string id)

@@ -45,6 +45,16 @@
             <StackPanel Spacing="14">
                 <StackPanel Orientation="Horizontal" Spacing="14">
                     <TextBlock Text="03 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="Comptes" Style="{StaticResource VeltrioSectionTitle}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource VeltrioBody}"
+                           Text="Importez votre bibliothèque dans la Collection et suivez ce que vous regardez. L'import ne fait qu'ajouter : il ne retire rien et ne remet aucune progression à zéro." />
+                <StackPanel x:Name="AccountCards" Spacing="12" />
+            </StackPanel>
+
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="04 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
                     <TextBlock Text="Lecture" Style="{StaticResource VeltrioSectionTitle}" />
                 </StackPanel>
                 <TextBlock Style="{StaticResource VeltrioBody}"
@@ -53,7 +63,7 @@
 
             <StackPanel Spacing="14">
                 <StackPanel Orientation="Horizontal" Spacing="14">
-                    <TextBlock Text="04 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="05 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
                     <TextBlock Text="Données" Style="{StaticResource VeltrioSectionTitle}" />
                 </StackPanel>
                 <TextBlock Style="{StaticResource VeltrioBody}"
@@ -67,7 +77,7 @@
 
             <StackPanel Spacing="10">
                 <StackPanel Orientation="Horizontal" Spacing="14">
-                    <TextBlock Text="05 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="06 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
                     <TextBlock Text="À propos" Style="{StaticResource VeltrioSectionTitle}" />
                 </StackPanel>
                 <TextBlock x:Name="Versions" FontFamily="{StaticResource VeltrioMono}" FontSize="12"
