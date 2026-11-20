@@ -37,8 +37,8 @@
             <Rectangle>
                 <Rectangle.Fill>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#59000000" Offset="0" />
-                        <GradientStop Color="#FF000000" Offset="0.9" />
+                        <GradientStop Color="{StaticResource VeltrioCanvas35Color}" Offset="0" />
+                        <GradientStop Color="{StaticResource VeltrioCanvasColor}" Offset="0.9" />
                     </LinearGradientBrush>
                 </Rectangle.Fill>
             </Rectangle>
@@ -77,7 +77,7 @@
                             <TextBlock Text="APERÇU" Style="{StaticResource VeltrioEyebrow}" />
                         </StackPanel>
                     </Grid>
-                    <TextBlock x:Name="Plot" Style="{StaticResource VeltrioBody}" Foreground="#BFFFFFFF" />
+                    <TextBlock x:Name="Plot" Style="{StaticResource VeltrioBody}" Foreground="{StaticResource VeltrioTextSecondaryBrush}" />
                     <Border Style="{StaticResource VeltrioRule}" />
                     <Button x:Name="PlayButton" Style="{StaticResource VeltrioPrimaryButton}" HorizontalAlignment="Stretch"
                             IsEnabled="False" Click="OnPlay">

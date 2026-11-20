@@ -30,7 +30,7 @@ public sealed partial class MainWindow : Window
         SetTitleBar(TitleBar);
         AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
         AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-        AppWindow.TitleBar.ButtonForegroundColor = Colors.White;
+        AppWindow.TitleBar.ButtonForegroundColor = Application.Current.RequestedTheme == ApplicationTheme.Light ? Colors.Black : Colors.White;
         FitToDisplay();
         var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "Veltrio.ico");
         if (File.Exists(icon)) AppWindow.SetIcon(icon);

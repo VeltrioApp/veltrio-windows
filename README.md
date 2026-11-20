@@ -64,6 +64,12 @@ titles), French UI.
 Not yet on Windows: downloads, casting — their clients live in Swift on
 macOS, not in the core.
 
+- **Settings**: playback defaults (preferred audio and subtitle language,
+  decoder, network buffer, next-episode countdown), theme (dark, a warm
+  light one, or Windows' mode; applied at launch, with a restart button),
+  storage (data folder, the torrent engine's cache with its size and a
+  button to clear it).
+
 Data lives in `%LOCALAPPDATA%\Veltrio` (JSON, same shapes as macOS).
 
 Unpackaged and self-contained for now (no MSIX, no separate Windows App

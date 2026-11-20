@@ -128,14 +128,18 @@ public sealed unsafe class MpvPlayer : IDisposable
         var caFile = Path.Combine(AppContext.BaseDirectory, "cacert.pem");
         if (File.Exists(caFile)) Set("tls-ca-file", caFile);
         Set("tls-verify", "yes");
-        Set("hwdec", "auto-safe");
+        var prefs = PlayerPrefs.Current;
+        Set("hwdec", prefs.Hwdec);
         Set("keep-open", "yes");
         Set("audio-channels", "auto-safe");
         Set("cache", "yes");
-        Set("demuxer-max-bytes", "150MiB");
-        Set("demuxer-max-back-bytes", "75MiB");
-        Set("alang", "fr,fre,fra,en,eng");
-        Set("slang", "fr,fre,fra");
+        Set("demuxer-max-bytes", $"{prefs.CacheMiB}MiB");
+        Set("demuxer-max-back-bytes", $"{prefs.CacheMiB / 2}MiB");
+        // The preferred language under all its codes (fr, fre, fra); English
+        // as the audio fallback.
+        if (prefs.AudioLang.Length > 0)
+            Set("alang", string.Join(",", MediaTrack.Synonyms(prefs.AudioLang).Concat(prefs.AudioLang == "eng" ? Array.Empty<string>() : new[] { "en", "eng" })));
+        if (prefs.SubtitleLang.Length > 0) Set("slang", string.Join(",", MediaTrack.Synonyms(prefs.SubtitleLang)));
         Set("sub-font-size", "46");
 
         var error = LibMpv.Initialize(Handle);

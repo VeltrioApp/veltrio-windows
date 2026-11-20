@@ -354,7 +354,8 @@ public sealed partial class PlayerPage : Page
     {
         if (_autoSubtitleDone || !_loaded || _player is null || _addonSubtitles.Count == 0) return;
         _autoSubtitleDone = true;
-        var preferred = new[] { "fr" };
+        if (PlayerPrefs.Current.SubtitleLang is not { Length: > 0 } language) return;
+        var preferred = new[] { language };
         var embedded = _player.SubtitleTracks.Any(t => preferred.SelectMany(MediaTrack.Synonyms).Contains((t.Lang ?? "").ToLowerInvariant()));
         var audioIsPreferred = _player.AudioTracks.FirstOrDefault(t => t.Id == _player.AudioId) is { Lang: { } lang }
                                && preferred.SelectMany(MediaTrack.Synonyms).Contains(lang.ToLowerInvariant());

@@ -73,6 +73,22 @@ public sealed class PlayerPrefs
     public ToneMapping ToneMapping { get; set; } = ToneMapping.Auto;
     public bool Passthrough { get; set; }
     public bool AutoNextEpisode { get; set; } = true;
+    /// <summary>ISO 639-2 codes; empty = no preference (the file's default track).</summary>
+    public string AudioLang { get; set; } = "fre";
+    public string SubtitleLang { get; set; } = "fre";
+    /// <summary>mpv's hwdec: auto-safe, auto, d3d11va or no.</summary>
+    public string Hwdec { get; set; } = "auto-safe";
+    /// <summary>Read-ahead buffer for network streams, in MiB.</summary>
+    public int CacheMiB { get; set; } = 150;
+
+    /// <summary>Languages offered in Settings, ISO 639-2 as mpv and the servers report them.</summary>
+    public static readonly (string Code, string Name)[] Languages =
+    {
+        ("", "Automatique"), ("fre", "Français"), ("eng", "Anglais"), ("spa", "Espagnol"), ("ger", "Allemand"),
+        ("ita", "Italien"), ("por", "Portugais"), ("rus", "Russe"), ("jpn", "Japonais"), ("kor", "Coréen"),
+        ("chi", "Chinois"), ("ara", "Arabe"), ("dut", "Néerlandais"), ("swe", "Suédois"), ("pol", "Polonais"),
+        ("tur", "Turc"), ("hin", "Hindi"),
+    };
 
     private const string File = "player-prefs.json";
     private static PlayerPrefs? _current;

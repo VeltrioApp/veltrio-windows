@@ -41,18 +41,18 @@
                 <Rectangle>
                     <Rectangle.Fill>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <GradientStop Color="#FF000000" Offset="0" />
-                            <GradientStop Color="#FF000000" Offset="0.28" />
-                            <GradientStop Color="#CC000000" Offset="0.42" />
-                            <GradientStop Color="#00000000" Offset="0.7" />
+                            <GradientStop Color="{StaticResource VeltrioCanvasColor}" Offset="0" />
+                            <GradientStop Color="{StaticResource VeltrioCanvasColor}" Offset="0.28" />
+                            <GradientStop Color="{StaticResource VeltrioCanvas80Color}" Offset="0.42" />
+                            <GradientStop Color="{StaticResource VeltrioCanvas0Color}" Offset="0.7" />
                         </LinearGradientBrush>
                     </Rectangle.Fill>
                 </Rectangle>
                 <Rectangle Height="180" VerticalAlignment="Bottom">
                     <Rectangle.Fill>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                            <GradientStop Color="#00000000" Offset="0" />
-                            <GradientStop Color="#FF000000" Offset="1" />
+                            <GradientStop Color="{StaticResource VeltrioCanvas0Color}" Offset="0" />
+                            <GradientStop Color="{StaticResource VeltrioCanvasColor}" Offset="1" />
                         </LinearGradientBrush>
                     </Rectangle.Fill>
                 </Rectangle>
@@ -66,12 +66,12 @@
                     <TextBlock x:Name="HeroTitle" FontFamily="{StaticResource VeltrioSerif}" FontSize="72" FontWeight="Bold"
                                CharacterSpacing="-30" LineHeight="76" MaxLines="2" TextWrapping="Wrap"
                                TextTrimming="WordEllipsis" Foreground="{StaticResource VeltrioTextPrimaryBrush}" />
-                    <Rectangle Width="280" Height="1" Fill="#33FFFFFF" HorizontalAlignment="Left" Margin="0,22,0,0" />
+                    <Rectangle Width="280" Height="1" Fill="{StaticResource VeltrioHairlineBrush}" HorizontalAlignment="Left" Margin="0,22,0,0" />
                     <TextBlock x:Name="HeroFacts" Margin="0,14,0,0" FontFamily="{StaticResource VeltrioMono}" FontSize="12"
-                               CharacterSpacing="80" Foreground="#BFFFFFFF" />
+                               CharacterSpacing="80" Foreground="{StaticResource VeltrioTextSecondaryBrush}" />
                     <TextBlock x:Name="HeroDescription" Margin="0,22,0,0" MaxWidth="580" HorizontalAlignment="Left"
                                FontSize="15" MaxLines="3" TextTrimming="WordEllipsis" Style="{StaticResource VeltrioBody}"
-                               Foreground="#BFFFFFFF" />
+                               Foreground="{StaticResource VeltrioTextSecondaryBrush}" />
                     <StackPanel Orientation="Horizontal" Spacing="14" Margin="0,22,0,0">
                         <Button x:Name="HeroWatch" Style="{StaticResource VeltrioPrimaryButton}" Padding="26,15" Click="OnHeroOpen">
                             <StackPanel Orientation="Horizontal" Spacing="12">

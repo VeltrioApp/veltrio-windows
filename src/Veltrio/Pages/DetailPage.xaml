@@ -68,17 +68,17 @@
             <Rectangle>
                 <Rectangle.Fill>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#59000000" Offset="0" />
-                        <GradientStop Color="#A6000000" Offset="0.45" />
-                        <GradientStop Color="#FF000000" Offset="0.9" />
+                        <GradientStop Color="{StaticResource VeltrioCanvas35Color}" Offset="0" />
+                        <GradientStop Color="{StaticResource VeltrioCanvas65Color}" Offset="0.45" />
+                        <GradientStop Color="{StaticResource VeltrioCanvasColor}" Offset="0.9" />
                     </LinearGradientBrush>
                 </Rectangle.Fill>
             </Rectangle>
             <Rectangle Width="700" HorizontalAlignment="Left">
                 <Rectangle.Fill>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                        <GradientStop Color="#8C000000" Offset="0" />
-                        <GradientStop Color="#00000000" Offset="1" />
+                        <GradientStop Color="{StaticResource VeltrioCanvas55Color}" Offset="0" />
+                        <GradientStop Color="{StaticResource VeltrioCanvas0Color}" Offset="1" />
                     </LinearGradientBrush>
                 </Rectangle.Fill>
             </Rectangle>
@@ -124,7 +124,7 @@
                         </StackPanel>
                     </Grid>
 
-                    <TextBlock x:Name="Description" Style="{StaticResource VeltrioBody}" Foreground="#BFFFFFFF" />
+                    <TextBlock x:Name="Description" Style="{StaticResource VeltrioBody}" Foreground="{StaticResource VeltrioTextSecondaryBrush}" />
                     <Border Style="{StaticResource VeltrioRule}" />
 
                     <Grid ColumnSpacing="14">

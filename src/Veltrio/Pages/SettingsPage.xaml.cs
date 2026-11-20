@@ -10,7 +10,7 @@ using static Veltrio.Pages.ServiceCard;
 namespace Veltrio.Pages;
 
 /// <summary>Settings: debrid services, Stremio / Trakt / SIMKL accounts,
-/// where data lives, playback notes, versions.</summary>
+/// playback defaults, theme, storage, versions.</summary>
 public sealed partial class SettingsPage : Page
 {
     public SettingsPage()
@@ -22,6 +22,9 @@ public sealed partial class SettingsPage : Page
         try { core = CoreService.Version; }
         catch { core = "indisponible"; }
         Versions.Text = $"Veltrio {app} · core {core} · libmpv · Windows App SDK";
+        LoadPlaybackChoices();
+        BuildThemeChips();
+        _ = MeasureTorrentCacheAsync();
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -54,6 +57,134 @@ public sealed partial class SettingsPage : Page
     {
         Directory.CreateDirectory(Storage.Folder);
         await Windows.System.Launcher.LaunchFolderPathAsync(Storage.Folder);
+    }
+
+    // -------------------- playback --------------------
+
+    private static readonly (string Value, string Label)[] Decoders =
+    {
+        ("auto-safe", "Automatique (sûr)"), ("auto", "Automatique (tout essayer)"), ("d3d11va", "Direct3D 11"), ("no", "Logiciel uniquement"),
+    };
+
+    private static readonly int[] CacheSizes = { 50, 150, 300, 500, 1000, 1500 };
+
+    private bool _loadingChoices;
+
+    private void LoadPlaybackChoices()
+    {
+        _loadingChoices = true;
+        var prefs = Player.PlayerPrefs.Current;
+        Fill(AudioLang, Player.PlayerPrefs.Languages.Select(l => (l.Code, l.Name)), prefs.AudioLang);
+        Fill(SubtitleLang, Player.PlayerPrefs.Languages.Select(l => (l.Code, l.Code == "" ? "Aucune préférence" : l.Name)), prefs.SubtitleLang);
+        Fill(Hwdec, Decoders, prefs.Hwdec);
+        Fill(CacheSize, CacheSizes.Select(n => (n.ToString(), $"{n} Mio")), prefs.CacheMiB.ToString());
+        AutoNext.IsOn = prefs.AutoNextEpisode;
+        _loadingChoices = false;
+    }
+
+    private static void Fill(ComboBox box, IEnumerable<(string Value, string Label)> options, string selected)
+    {
+        box.Items.Clear();
+        foreach (var (value, label) in options)
+        {
+            var item = new ComboBoxItem { Content = label, Tag = value };
+            box.Items.Add(item);
+            if (value == selected) box.SelectedItem = item;
+        }
+        box.SelectedIndex = Math.Max(0, box.SelectedIndex);
+    }
+
+    private static string Selected(ComboBox box) => (box.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+
+    private void OnPlaybackChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loadingChoices) return;
+        var prefs = Player.PlayerPrefs.Current;
+        prefs.AudioLang = Selected(AudioLang);
+        prefs.SubtitleLang = Selected(SubtitleLang);
+        prefs.Hwdec = Selected(Hwdec) is { Length: > 0 } hw ? hw : "auto-safe";
+        prefs.CacheMiB = int.TryParse(Selected(CacheSize), out var mib) ? mib : 150;
+        prefs.AutoNextEpisode = AutoNext.IsOn;
+        prefs.Save();
+    }
+
+    // -------------------- appearance --------------------
+
+    private static readonly AppTheme StartedWith = AppPrefs.Current.Theme;
+
+    private void BuildThemeChips()
+    {
+        ThemeChips.Children.Clear();
+        foreach (var (theme, label) in new[] { (AppTheme.Dark, "SOMBRE"), (AppTheme.Light, "CLAIR"), (AppTheme.System, "COMME WINDOWS") })
+        {
+            var chip = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
+            {
+                Content = label, IsChecked = AppPrefs.Current.Theme == theme, Style = Res<Style>("VeltrioChip"),
+            };
+            chip.Click += (_, _) =>
+            {
+                AppPrefs.Current.Theme = theme;
+                AppPrefs.Current.Save();
+                BuildThemeChips();
+            };
+            ThemeChips.Children.Add(chip);
+        }
+        RestartButton.Visibility = AppPrefs.Current.Theme != StartedWith ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnRestart(object sender, RoutedEventArgs e) => Microsoft.Windows.AppLifecycle.AppInstance.Restart("");
+
+    // -------------------- storage --------------------
+
+    /// <summary>Where the core's torrent engine downloads (its temp folder).</summary>
+    private static readonly string TorrentFolder = Path.Combine(Path.GetTempPath(), "veltrio-torrents");
+
+    private async Task MeasureTorrentCacheAsync()
+    {
+        var bytes = await Task.Run(() =>
+        {
+            try
+            {
+                return Directory.Exists(TorrentFolder)
+                    ? new DirectoryInfo(TorrentFolder).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length)
+                    : 0L;
+            }
+            catch
+            {
+                return 0L;
+            }
+        });
+        TorrentCache.Text = $"{TorrentFolder} · {FormatSize(bytes)}";
+        ClearCacheButton.IsEnabled = bytes > 0;
+    }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1L << 30 => $"{bytes / (double)(1L << 30):0.0} Go",
+        >= 1L << 20 => $"{bytes / (double)(1L << 20):0} Mo",
+        > 0 => "moins de 1 Mo",
+        _ => "vide",
+    };
+
+    private async void OnClearCache(object sender, RoutedEventArgs e)
+    {
+        ClearCacheButton.IsEnabled = false;
+        await Task.Run(() =>
+        {
+            if (!Directory.Exists(TorrentFolder)) return;
+            foreach (var entry in new DirectoryInfo(TorrentFolder).EnumerateFileSystemInfos())
+            {
+                // A file the engine still holds open stays.
+                try
+                {
+                    if (entry is DirectoryInfo dir) dir.Delete(recursive: true);
+                    else entry.Delete();
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        });
+        await MeasureTorrentCacheAsync();
     }
 
     // -------------------- debrid cards --------------------
@@ -206,7 +337,7 @@ public sealed partial class SettingsPage : Page
     private FrameworkElement SimklCard()
     {
         var connected = SimklService.IsConnected;
-        var (card, actions) = Shell("SIMKL", "#FFFFFF",
+        var (card, actions) = Shell("SIMKL", "#8A8A8A",
             connected ? "CONNECTÉ" : SimklService.IsAvailable ? "Connexion par code, sans mot de passe." : "Indisponible dans cette version.", connected);
         if (connected)
         {
