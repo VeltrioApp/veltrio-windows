@@ -50,15 +50,19 @@ titles), French UI.
   get start / pause / stop scrobbles from the player. Imports only add:
   they never unsave, unwatch or rewind. Trakt and SIMKL need app
   credentials at build time (see Build); without them their cards say so.
-- **Player**: libmpv, like macOS. mpv renders through its OpenGL API into
-  ANGLE (GL ES over Direct3D 11), on the same D3D11 device as a
-  composition swapchain shown by a `SwapChainPanel`; the controls are
-  XAML on top: scrubber, ±10/30 s, volume, audio and subtitle tracks,
-  subtitles from addons (OpenSubtitles…, the preferred language added
-  automatically when the file has none) or a local file, speed, framing
-  and zoom, subtitle/audio delay, HDR tone mapping, playback profiles,
-  passthrough, media info (I), skip intro from chapters (S), next episode
-  with a countdown (N), full screen. Resume and progress. A log goes to
+- **Player**: libmpv, laid out like the macOS player. mpv renders through
+  its OpenGL API into ANGLE (GL ES over Direct3D 11), on the same D3D11
+  device as a composition swapchain shown by a `SwapChainPanel`; the
+  controls are XAML on top, as on macOS: a Back pill, the title and a row
+  of glass buttons along the top (channels, audio, subtitles, speed,
+  framing and zoom, playback profile / tone mapping / passthrough, cast,
+  replay, media info, full screen, with corner badges for what's not at
+  its default); at the bottom a thin amber seek bar with chapter marks and
+  a time / chapter tooltip, ±10 s around a white play button, the time and
+  a volume pill. Subtitles from addons (OpenSubtitles…, the preferred
+  language added automatically when the file has none) or a local file;
+  skip intro from chapters (S); next episode with a countdown (N); the same
+  keyboard shortcuts as macOS. Resume and progress. A log goes to
   `player.log` in the data folder.
 
 - **Downloads**: right-click a stream on a title page to save it for

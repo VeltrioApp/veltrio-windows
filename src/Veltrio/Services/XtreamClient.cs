@@ -14,6 +14,8 @@ public sealed class XtreamProgramme
     public bool HasArchive { get; init; }
 
     public string TimeRange => $"{Start.ToLocalTime():ddd HH:mm} – {End.ToLocalTime():HH:mm}";
+    /// <summary>"lun. 20:30", the replay list's first column.</summary>
+    public string StartLabel => $"{Start.ToLocalTime():ddd HH:mm}";
     public int DurationMinutes => Math.Max(1, (int)Math.Ceiling((End - Start).TotalMinutes));
 }
 

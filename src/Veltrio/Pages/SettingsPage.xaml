@@ -78,7 +78,7 @@
                 <ToggleSwitch x:Name="AutoNext" Header="Enchaîner l'épisode suivant (compte à rebours de 10 s en fin d'épisode)"
                               OnContent="Oui" OffContent="Non" Toggled="OnPlaybackChanged" />
                 <TextBlock Style="{StaticResource VeltrioBody}" FontSize="12"
-                           Text="Des sous-titres d'addons dans la langue choisie s'ajoutent quand le fichier n'en a pas et que l'audio n'est pas déjà dans cette langue. Raccourcis : Espace lecture/pause · ← → reculer de 10 s / avancer de 30 s · ↑ ↓ volume · M couper le son · Z X décaler les sous-titres · S passer l'intro · N épisode suivant · I infos média · Pg préc./Pg suiv. changer de chaîne · F plein écran · Échap quitter. Format d'image, zoom, décalages, tone mapping et profils sont dans le menu ⚙ du lecteur." />
+                           Text="Des sous-titres d'addons dans la langue choisie s'ajoutent quand le fichier n'en a pas et que l'audio n'est pas déjà dans cette langue. Raccourcis, comme sur macOS : Espace lecture/pause · ← → 10 s en arrière / en avant · ↑ ↓ volume · M couper le son · Z X décaler les sous-titres · [ ] vitesse · A format d'image · S passer l'intro · N épisode suivant · I infos média · L chaînes · G programme en cours · Pg préc./Pg suiv. changer de chaîne · F plein écran · Échap quitter." />
             </StackPanel>
 
             <StackPanel Spacing="14">

@@ -50,21 +50,26 @@ public sealed record MediaTrack(long Id, string Type, string? Lang, string? Titl
     public static string? LanguageName(string? code) =>
         string.IsNullOrWhiteSpace(code) ? null : Languages.GetValueOrDefault(code.ToLowerInvariant(), code.ToUpperInvariant());
 
-    /// <summary>"Français · EAC3 · Forcé", the label the menus show.</summary>
-    public string Label
+    /// <summary>The track's title, else its language, else its number.</summary>
+    public string DisplayName => !string.IsNullOrWhiteSpace(Title) ? Title!
+        : Lang is { Length: > 0 } l ? Languages.GetValueOrDefault(l.ToLowerInvariant(), l.ToUpperInvariant())
+        : $"Piste {Id}";
+
+    /// <summary>"FRE · EAC3 · Forcé": what the name doesn't say.</summary>
+    public string SecondaryLabel
     {
         get
         {
-            var name = !string.IsNullOrWhiteSpace(Title) ? Title!
-                : Lang is { Length: > 0 } l ? Languages.GetValueOrDefault(l.ToLowerInvariant(), l.ToUpperInvariant())
-                : $"Piste {Id}";
             var extras = new List<string>();
             if (!string.IsNullOrWhiteSpace(Title) && Lang is { Length: > 0 } lang) extras.Add(lang.ToUpperInvariant());
             if (!string.IsNullOrWhiteSpace(Codec)) extras.Add(Codec!.ToUpperInvariant());
             if (IsForced) extras.Add("Forcé");
-            return extras.Count == 0 ? name : $"{name} · {string.Join(" · ", extras)}";
+            return string.Join(" · ", extras);
         }
     }
+
+    /// <summary>"Français   EAC3", the label the menus show (as macOS).</summary>
+    public string Label => SecondaryLabel.Length == 0 ? DisplayName : $"{DisplayName}   {SecondaryLabel}";
 }
 
 /// <summary>One mpv instance: options as on macOS, an event thread, and
