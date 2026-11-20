@@ -204,6 +204,20 @@ public sealed class StreamItem
             Origin = origin.ToUpperInvariant(),
         };
 
+    /// <summary>A copy downloaded for offline playback: played from disk.</summary>
+    public string? LocalPath { get; private init; }
+
+    internal static StreamItem Local(DownloadItem download) =>
+        new(new CoreStream(download.Title, $"{download.Subtitle} · {Size(download.BytesDownloaded)} sur cet appareil".TrimStart(' ', '·'),
+            null, new StreamSource.Url(download.LocalPath), Array.Empty<string>(), null), "Hors ligne")
+        {
+            Origin = "HORS LIGNE",
+            LocalPath = download.LocalPath,
+        };
+
+    private static string Size(long bytes) =>
+        bytes >= 1L << 30 ? $"{bytes / (double)(1L << 30):0.0} Go" : $"{Math.Max(1, bytes >> 20)} Mo";
+
     public string Name => (Stream.name ?? AddonName).Replace('\n', ' ');
     public override string ToString() => $"{Name} {Title}";
     public string Title => (Stream.title ?? Stream.description ?? "").Trim();

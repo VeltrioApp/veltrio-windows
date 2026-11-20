@@ -107,6 +107,10 @@
                 <Button Style="{StaticResource VeltrioGhostButton}" Click="OnOpenFolder" HorizontalAlignment="Left">
                     <TextBlock Text="OUVRIR LE DOSSIER" />
                 </Button>
+                <TextBlock Text="TÉLÉCHARGEMENTS" Style="{StaticResource VeltrioEyebrow}" Margin="0,8,0,0" />
+                <TextBlock x:Name="NoDownloads" Style="{StaticResource VeltrioBody}" FontSize="12"
+                           Text="Aucun téléchargement. Clic droit sur un flux, dans la fiche d'un titre, puis « Télécharger pour regarder hors ligne »." />
+                <StackPanel x:Name="DownloadList" Spacing="8" />
                 <TextBlock Style="{StaticResource VeltrioBody}" Margin="0,8,0,0"
                            Text="Les torrents lus sans debrid sont téléchargés dans un dossier temporaire, gardé pour reprendre plus vite. Le vider libère la place ; un torrent en cours de lecture n'est pas touché." />
                 <TextBlock x:Name="TorrentCache" FontFamily="{StaticResource VeltrioMono}" FontSize="12" IsTextSelectionEnabled="True"

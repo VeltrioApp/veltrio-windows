@@ -33,8 +33,10 @@ public sealed partial class SettingsPage : Page
         StremioAccountService.Changed += OnAccountsChanged;
         TraktService.Changed += OnAccountsChanged;
         SimklService.Changed += OnAccountsChanged;
+        DownloadManager.Changed += OnDownloadsChanged;
         BuildDebridCards();
         BuildAccountCards();
+        BuildDownloads();
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -43,7 +45,10 @@ public sealed partial class SettingsPage : Page
         StremioAccountService.Changed -= OnAccountsChanged;
         TraktService.Changed -= OnAccountsChanged;
         SimklService.Changed -= OnAccountsChanged;
+        DownloadManager.Changed -= OnDownloadsChanged;
     }
+
+    private void OnDownloadsChanged() => DispatcherQueue.TryEnqueue(BuildDownloads);
 
     private void OnDebridChanged() => DispatcherQueue.TryEnqueue(BuildDebridCards);
 
@@ -156,6 +161,73 @@ public sealed partial class SettingsPage : Page
         });
         TorrentCache.Text = $"{TorrentFolder} · {FormatSize(bytes)}";
         ClearCacheButton.IsEnabled = bytes > 0;
+    }
+
+    private void BuildDownloads()
+    {
+        DownloadList.Children.Clear();
+        var items = DownloadManager.Items.OrderByDescending(d => d.CreatedAt).ToList();
+        NoDownloads.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var item in items) DownloadList.Children.Add(DownloadRow(item));
+    }
+
+    private FrameworkElement DownloadRow(DownloadItem item)
+    {
+        var row = new Grid
+        {
+            Padding = new Thickness(16, 12, 16, 12), ColumnSpacing = 16,
+            Background = Res<Brush>("VeltrioSurfaceBrush"), BorderBrush = Res<Brush>("VeltrioBorderBrush"), BorderThickness = new Thickness(1),
+        };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var texts = new StackPanel { Spacing = 4 };
+        texts.Children.Add(new TextBlock
+        {
+            Text = item.Subtitle is { Length: > 0 } sub ? $"{item.Title} · {sub}" : item.Title,
+            FontFamily = Res<FontFamily>("VeltrioSerif"), FontSize = 15, FontWeight = FontWeights.SemiBold,
+            Foreground = Res<Brush>("VeltrioTextPrimaryBrush"), TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        var size = item.BytesExpected > 0 ? $"{FormatSize(item.BytesDownloaded)} sur {FormatSize(item.BytesExpected)}" : FormatSize(item.BytesDownloaded);
+        texts.Children.Add(new TextBlock
+        {
+            Text = item.Status switch
+            {
+                DownloadStatus.Completed => $"TÉLÉCHARGÉ · {FormatSize(item.BytesDownloaded).ToUpperInvariant()}",
+                DownloadStatus.Downloading => $"EN COURS · {item.Progress:P0} · {size.ToUpperInvariant()}",
+                DownloadStatus.Paused => $"EN PAUSE · {item.Progress:P0}",
+                _ => $"ÉCHEC · {item.Error}",
+            },
+            Style = Res<Style>(item.Status == DownloadStatus.Failed ? "VeltrioBody" : "VeltrioEyebrow"),
+            Foreground = Res<Brush>(item.Status == DownloadStatus.Failed ? "VeltrioDangerBrush" : "VeltrioTextTertiaryBrush"),
+            FontSize = item.Status == DownloadStatus.Failed ? 12 : 10, TextWrapping = TextWrapping.Wrap,
+        });
+        if (item.Status is DownloadStatus.Downloading or DownloadStatus.Paused)
+            texts.Children.Add(new ProgressBar { Value = item.Progress * 100, Maximum = 100, MinHeight = 2 });
+        row.Children.Add(texts);
+
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        switch (item.Status)
+        {
+            case DownloadStatus.Completed:
+                actions.Children.Add(ActionButton("LIRE", ghost: false, () => Navigator.Play(new PlayRequest
+                {
+                    Title = item.Title, Subtitle = item.Subtitle, Url = item.LocalPath,
+                    ContentType = item.ContentType, ContentId = item.ContentId,
+                    VideoId = item.ContentType == "series" ? item.Id : null,
+                    Season = item.Season, Episode = item.Episode, Poster = item.Poster,
+                })));
+                break;
+            case DownloadStatus.Downloading:
+                actions.Children.Add(ActionButton("PAUSE", ghost: true, () => DownloadManager.Pause(item.Id)));
+                break;
+            default:
+                actions.Children.Add(ActionButton("REPRENDRE", ghost: true, () => DownloadManager.Resume(item.Id)));
+                break;
+        }
+        actions.Children.Add(ActionButton("SUPPRIMER", ghost: true, () => DownloadManager.Remove(item.Id)));
+        Grid.SetColumn(actions, 1);
+        row.Children.Add(actions);
+        return row;
     }
 
     private static string FormatSize(long bytes) => bytes switch

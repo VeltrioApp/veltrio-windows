@@ -61,9 +61,14 @@ titles), French UI.
   with a countdown (N), full screen. Resume and progress. A log goes to
   `player.log` in the data folder.
 
-Not yet on Windows: downloads, casting — their clients live in Swift on
-macOS, not in the core.
+Not yet on Windows: casting — its client lives in Swift on macOS, not in
+the core.
 
+- **Downloads**: right-click a stream on a title page to save it for
+  offline (resolved like playback: direct, debrid or the local torrent
+  engine), with pause and resume (HTTP ranges). A finished copy is listed
+  first among the title's streams and plays from disk with the title's
+  progress; the list (play, pause, resume, delete) is in Settings.
 - **Settings**: playback defaults (preferred audio and subtitle language,
   decoder, network buffer, next-episode countdown), theme (dark, a warm
   light one, or Windows' mode; applied at launch, with a restart button),

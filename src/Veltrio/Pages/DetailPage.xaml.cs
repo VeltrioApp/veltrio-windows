@@ -28,6 +28,8 @@ public sealed partial class DetailPage : Page
         InitializeComponent();
         SizeChanged += (_, e) => LeftColumn.Width = new GridLength(Math.Clamp(e.NewSize.Width * 0.44, 380, 560) + 96);
         BuildQualityChips();
+        // The list items mark right-clicks handled; listen anyway.
+        StreamList.AddHandler(RightTappedEvent, new Microsoft.UI.Xaml.Input.RightTappedEventHandler(OnStreamRightTapped), handledEventsToo: true);
     }
 
     private bool IsSeries => _details?.Episodes.Count > 0;
@@ -230,9 +232,13 @@ public sealed partial class DetailPage : Page
         }
     }
 
+    /// <summary>The video id the stream list is for (film, or episode).</summary>
+    private string _streamsId = "";
+
     private async Task LoadStreamsAsync(string type, string id)
     {
         var request = ++_streamRequest;
+        _streamsId = id;
         _streams = Array.Empty<StreamItem>();
         StreamList.ItemsSource = null;
         StreamsEmpty.Visibility = Visibility.Collapsed;
@@ -245,7 +251,10 @@ public sealed partial class DetailPage : Page
         // A slower answer for a previous episode mustn't replace this one.
         if (request != _streamRequest) return;
 
-        _streams = streams;
+        // A copy downloaded for offline goes before everything.
+        _streams = DownloadManager.LocalFile(id) is not null
+            ? streams.Prepend(StreamItem.Local(DownloadManager.Item(id)!)).ToList()
+            : streams;
         StreamsLoading.IsActive = false;
         RefreshSourceFilter();
         ApplyFilters();
@@ -261,7 +270,9 @@ public sealed partial class DetailPage : Page
         if (request != _streamRequest) return;
         if (copies.Count > 0)
         {
-            _streams = copies.Concat(_streams).ToList();
+            // After the offline copy, before the addons.
+            var local = _streams.TakeWhile(st => st.LocalPath is not null).ToList();
+            _streams = local.Concat(copies).Concat(_streams.Skip(local.Count)).ToList();
             RefreshSourceFilter();
         }
         ApplyFilters();
@@ -381,6 +392,34 @@ public sealed partial class DetailPage : Page
 
     private void OnStreamClick(object sender, ItemClickEventArgs e) => Play((StreamItem)e.ClickedItem);
 
+    /// <summary>Right-click: save this stream for offline, or manage the copy.</summary>
+    private void OnStreamRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+    {
+        if ((e.OriginalSource as FrameworkElement)?.DataContext is not StreamItem stream) return;
+        var id = _streamsId;
+        var menu = new MenuFlyout();
+        void Add(string text, Action action)
+        {
+            var item = new MenuFlyoutItem { Text = text };
+            item.Click += (_, _) => action();
+            menu.Items.Add(item);
+        }
+        switch (DownloadManager.Item(id))
+        {
+            case { Status: DownloadStatus.Completed }:
+                Add("Supprimer la copie hors ligne", () => { DownloadManager.Remove(id); _ = LoadStreamsAsync(_request.Type, id); });
+                break;
+            case { Status: DownloadStatus.Downloading } running:
+                Add($"Téléchargement en cours ({running.Progress:P0}) : mettre en pause", () => DownloadManager.Pause(id));
+                break;
+            default:
+                if (stream.LocalPath is not null || CoreService.ExternalUrl(stream) is not null) return;
+                Add("Télécharger pour regarder hors ligne", () => _ = DownloadManager.StartAsync(id, Request(stream, _episode)));
+                break;
+        }
+        menu.ShowAt((FrameworkElement)e.OriginalSource, e.GetPosition((FrameworkElement)e.OriginalSource));
+    }
+
     private async void Play(StreamItem stream)
     {
         // Trailers and provider pages open in the browser.
@@ -401,6 +440,7 @@ public sealed partial class DetailPage : Page
         {
             Title = _details?.Name ?? _request.Name,
             Subtitle = episode is null ? stream.Name : $"{episode.Code} — {episode.Title}",
+            Url = stream.LocalPath,
             Stream = stream,
             ContentType = _request.Type,
             ContentId = _request.Id,
