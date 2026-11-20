@@ -2,6 +2,7 @@
     x:Class="Veltrio.Pages.SearchPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Veltrio.Pages"
     xmlns:services="using:Veltrio.Services">
 
     <ScrollViewer>
@@ -45,7 +46,7 @@
                             <ListView ItemsSource="{x:Bind Items}" SelectionMode="None" IsItemClickEnabled="True"
                                       ItemClick="OnPosterClick" ItemTemplate="{StaticResource PosterTemplate}"
                                       ItemContainerStyle="{StaticResource VeltrioBareListItem}"
-                                      ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                      local:WheelScroll.PassToPage="True" ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                       ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.VerticalScrollBarVisibility="Hidden">
                                 <ListView.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -65,7 +66,7 @@
                 </StackPanel>
                 <ListView x:Name="ChannelList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnChannelClick"
                           ItemTemplate="{StaticResource ChannelTemplate}" ItemContainerStyle="{StaticResource VeltrioBareListItem}"
-                          ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                          local:WheelScroll.PassToPage="True" ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                           ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.VerticalScrollBarVisibility="Hidden">
                     <ListView.ItemsPanel>
                         <ItemsPanelTemplate>

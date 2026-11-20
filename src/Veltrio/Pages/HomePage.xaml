@@ -100,7 +100,7 @@
                     <ListView x:Name="ContinueList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnContinueClick"
                               ItemTemplate="{StaticResource ContinueTemplate}"
                               ItemContainerStyle="{StaticResource VeltrioBareListItem}"
-                              ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              local:WheelScroll.PassToPage="True" ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                               ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.VerticalScrollBarVisibility="Hidden"
                               ScrollViewer.IsVerticalScrollChainingEnabled="True">
                         <ListView.ItemsPanel>
@@ -141,7 +141,7 @@
                                 <ListView ItemsSource="{x:Bind Items, Mode=OneWay}" SelectionMode="None" IsItemClickEnabled="True"
                                           ItemClick="OnPosterClick" ItemTemplate="{StaticResource PosterTemplate}"
                                           ItemContainerStyle="{StaticResource VeltrioBareListItem}"
-                                          ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                          local:WheelScroll.PassToPage="True" ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                           ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.VerticalScrollBarVisibility="Hidden"
                                           ScrollViewer.IsVerticalScrollChainingEnabled="True">
                                     <ListView.ItemsPanel>
