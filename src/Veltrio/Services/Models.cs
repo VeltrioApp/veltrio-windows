@@ -234,12 +234,7 @@ public sealed class StreamItem
     {
         get
         {
-            var hay = $"{Stream.name} {Stream.title}".ToUpperInvariant();
-            if (hay.Contains("2160P") || hay.Contains("4K")) return "4K";
-            if (hay.Contains("1080P")) return "1080p";
-            if (hay.Contains("720P")) return "720p";
-            if (hay.Contains("480P")) return "480p";
-            return "";
+            return CoreService.Resolution($"{Stream.name} {Stream.title}".ToUpperInvariant());
         }
     }
 

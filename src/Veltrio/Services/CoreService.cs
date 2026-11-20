@@ -196,6 +196,20 @@ public static class CoreService
         }));
         return chunks.SelectMany(c => c).OrderByDescending(s => s.Score).ToList();
     }
+    /// <summary>The resolution a stream's name and title announce
+    /// (upper-cased). Matched as whole words: release sites and groups carry
+    /// them too ("Wolfmax4k"), and those mustn't make a 1080p file read as 4K.</summary>
+    public static string Resolution(string upperCased)
+    {
+        static bool Has(string hay, string tag) =>
+            System.Text.RegularExpressions.Regex.IsMatch(hay, $"(?<![A-Z0-9]){tag}(?![A-Z0-9])");
+        if (Has(upperCased, "4K") || Has(upperCased, "2160P") || Has(upperCased, "UHD")) return "4K";
+        if (Has(upperCased, "1080P")) return "1080p";
+        if (Has(upperCased, "720P")) return "720p";
+        if (Has(upperCased, "480P")) return "480p";
+        return "";
+    }
+
 
     /// <summary>Same ranking as macOS: direct links before torrents, then
     /// resolution, HDR/Dolby/Atmos, then seeds.</summary>
@@ -208,10 +222,7 @@ public static class CoreService
             StreamSource.External => 3_000,
             _ => 0,
         };
-        if (hay.Contains("2160P") || hay.Contains("4K")) score += 2_000;
-        else if (hay.Contains("1080P")) score += 1_500;
-        else if (hay.Contains("720P")) score += 1_000;
-        else if (hay.Contains("480P")) score += 500;
+        score += Resolution(hay) switch { "4K" => 2_000, "1080p" => 1_500, "720p" => 1_000, "480p" => 500, _ => 0 };
         if (hay.Contains("HDR")) score += 200;
         if (hay.Contains("DOLBY")) score += 150;
         if (hay.Contains("ATMOS")) score += 150;
