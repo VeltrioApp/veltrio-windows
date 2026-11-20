@@ -240,30 +240,72 @@ public sealed partial class DetailPage : Page
         StreamCount.Text = "";
         UpdatePlayButton(loading: true);
 
+        var direct = DirectAsync(id);
         var streams = await CoreService.FetchStreamsAsync(type, id);
         // A slower answer for a previous episode mustn't replace this one.
         if (request != _streamRequest) return;
 
         _streams = streams;
         StreamsLoading.IsActive = false;
-        SourceFilter.SelectionChanged -= OnFilterChanged;
-        SourceFilter.Items.Clear();
-        SourceFilter.Items.Add("Toutes les sources");
-        foreach (var name in streams.Select(s => s.AddonName).Distinct()) SourceFilter.Items.Add(name);
-        SourceFilter.SelectedIndex = 0;
-        SourceFilter.SelectionChanged += OnFilterChanged;
+        RefreshSourceFilter();
         ApplyFilters();
         UpdatePlayButton();
 
-        // Then ask the debrid services what they have cached: ⚡ rows go first.
+        // Two lookups run alongside: the user's own copies (media servers,
+        // IPTV provider), listed first once found, and what the debrid
+        // services have cached (⚡ rows next). Neither holds the list back.
         var hashes = streams.Select(s => s.InfoHash).OfType<string>().ToList();
-        if (!DebridService.AnyConnected || hashes.Count == 0) return;
-        StreamCount.Text += " · VÉRIFICATION DEBRID…";
-        await DebridService.PrefetchAsync(hashes);
+        var debrid = DebridService.AnyConnected && hashes.Count > 0 ? DebridService.PrefetchAsync(hashes) : null;
+        if (!direct.IsCompleted) StreamCount.Text += " · RECHERCHE DANS VOS SERVEURS…";
+        var copies = await direct;
         if (request != _streamRequest) return;
-        _streams = _streams.OrderByDescending(s => s.IsCached).ThenByDescending(s => s.Score).ToList();
+        if (copies.Count > 0)
+        {
+            _streams = copies.Concat(_streams).ToList();
+            RefreshSourceFilter();
+        }
         ApplyFilters();
         UpdatePlayButton();
+
+        if (debrid is null) return;
+        if (!debrid.IsCompleted) StreamCount.Text += " · VÉRIFICATION DEBRID…";
+        await debrid;
+        if (request != _streamRequest) return;
+        _streams = _streams.OrderByDescending(s => s.Origin is not null).ThenByDescending(s => s.IsCached).ThenByDescending(s => s.Score).ToList();
+        ApplyFilters();
+        UpdatePlayButton();
+    }
+
+    private void RefreshSourceFilter()
+    {
+        var selected = SourceFilter.SelectedItem as string;
+        SourceFilter.SelectionChanged -= OnFilterChanged;
+        SourceFilter.Items.Clear();
+        SourceFilter.Items.Add("Toutes les sources");
+        foreach (var name in _streams.Select(s => s.AddonName).Distinct()) SourceFilter.Items.Add(name);
+        SourceFilter.SelectedItem = selected is not null && SourceFilter.Items.Contains(selected) ? selected : SourceFilter.Items[0];
+        SourceFilter.SelectionChanged += OnFilterChanged;
+    }
+
+    /// <summary>Media server and IPTV copies for a video id: tt123 for a
+    /// film, tt123:season:episode for an episode.</summary>
+    private async Task<IReadOnlyList<StreamItem>> DirectAsync(string id)
+    {
+        var parts = id.Split(':');
+        if (!parts[0].StartsWith("tt") || (!MediaServers.Connected.Any() && !IptvStore.Playlists.Any(p => p.IsXtream)))
+            return Array.Empty<StreamItem>();
+        int? season = parts.Length == 3 && int.TryParse(parts[1], out var s) ? s : null;
+        int? episode = parts.Length == 3 && int.TryParse(parts[2], out var e) ? e : null;
+        int? year = _details?.Year is { Length: >= 4 } y && int.TryParse(y[..4], out var parsed) ? parsed : null;
+        try
+        {
+            return await DirectSources.FindAsync(parts[0], _details?.Name ?? _request.Name, year, season, episode);
+        }
+        catch (Exception ex)
+        {
+            Player.PlayerLog.Write($"[direct] {ex.Message}");
+            return Array.Empty<StreamItem>();
+        }
     }
 
     private IEnumerable<StreamItem> Visible()

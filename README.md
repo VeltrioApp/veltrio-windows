@@ -11,7 +11,10 @@ titles), French UI.
   streams from every addon, ranked like macOS, filterable by quality and
   source.
 - **Recherche**: across the addons' searchable catalogs and the IPTV channels.
-- **Collection**: saved and started titles, filters, watched / remove.
+- **Collection**: saved and started titles, filters, watched / remove; and
+  each connected media server's libraries, a page at a time. Titles the
+  server identified open on their title page; the others play directly,
+  and unidentified series list their episodes (with resume).
 - **Direct**: Xtream Codes accounts (live, films, series and series pages,
   replay), M3U playlists by URL or local file (a provider's get.php link is
   added as Xtream). Search covers Xtream films and series on the provider's
@@ -24,7 +27,17 @@ titles), French UI.
   replay panel of past programmes.
 - **Sources**: install from URL, enable, reorder, remove, suggestions;
   IPTV playlists; the addon catalogue (Stremio's official collection and
-  the community site stremio-addons.net, one-click install).
+  the community site stremio-addons.net, one-click install); media
+  servers: Jellyfin and Emby (address, user, password; the server's kind
+  is checked first so a wrong address isn't reported as a wrong
+  password), Plex (PIN at plex.tv/link; the server is found through
+  plex.tv, local connections first).
+- **Direct copies**: on a title page, the copies of that film or episode on
+  the connected media servers (matched on the IMDB id the server stores,
+  else title and year) and on every Xtream provider (title and year, with
+  the provider's "FR | … (2021)" dressing stripped) are listed first among
+  the streams, with their video and audio languages. They're looked up
+  alongside the addons and don't hold the list back.
 - **Debrid** (Settings): Real-Debrid (device code), AllDebrid (PIN, through
   the core), TorBox and Premiumize (API key). Cached torrents get a ⚡ badge
   and go first; playing a torrent goes through debrid before the local
@@ -48,8 +61,8 @@ titles), French UI.
   with a countdown (N), full screen. Resume and progress. A log goes to
   `player.log` in the data folder.
 
-Not yet on Windows: media servers (Jellyfin/Plex/Emby), downloads,
-casting — their clients live in Swift on macOS, not in the core.
+Not yet on Windows: downloads, casting — their clients live in Swift on
+macOS, not in the core.
 
 Data lives in `%LOCALAPPDATA%\Veltrio` (JSON, same shapes as macOS).
 

@@ -192,10 +192,22 @@ public sealed class StreamItem
         AddonName = addonName;
     }
 
+    /// <summary>Set for a copy on the user's media server or IPTV provider
+    /// ("Jellyfin", "IPTV"); null for an addon stream.</summary>
+    public string? Origin { get; private init; }
+
+    /// <summary>A direct copy of the title (see DirectSources).</summary>
+    internal static StreamItem Direct(string origin, string name, string? detail, IEnumerable<string> languages, string url) =>
+        new(new CoreStream(name, string.Join(" · ", new[] { detail, string.Join(" ", languages) }.Where(t => !string.IsNullOrEmpty(t))),
+            null, new StreamSource.Url(url), Array.Empty<string>(), null), origin)
+        {
+            Origin = origin.ToUpperInvariant(),
+        };
+
     public string Name => (Stream.name ?? AddonName).Replace('\n', ' ');
     public override string ToString() => $"{Name} {Title}";
     public string Title => (Stream.title ?? Stream.description ?? "").Trim();
-    public string Kind => Stream.source switch
+    public string Kind => Origin ?? Stream.source switch
     {
         StreamSource.Torrent when IsCached => CacheLabel,
         StreamSource.Torrent => "TORRENT",
