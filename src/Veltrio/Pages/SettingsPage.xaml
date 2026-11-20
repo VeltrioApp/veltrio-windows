@@ -127,6 +127,13 @@
                 </StackPanel>
                 <TextBlock x:Name="Versions" FontFamily="{StaticResource VeltrioMono}" FontSize="12"
                            Foreground="{StaticResource VeltrioTextSecondaryBrush}" />
+                <StackPanel Orientation="Horizontal" Spacing="14" Margin="0,4,0,4">
+                    <Button x:Name="UpdateButton" Style="{StaticResource VeltrioGhostButton}" Click="OnUpdate">
+                        <TextBlock x:Name="UpdateLabel" Text="RECHERCHER UNE MISE À JOUR" />
+                    </Button>
+                    <TextBlock x:Name="UpdateStatus" Style="{StaticResource VeltrioBody}" FontSize="12" VerticalAlignment="Center"
+                               TextWrapping="Wrap" />
+                </StackPanel>
                 <TextBlock Style="{StaticResource VeltrioBody}" FontSize="12"
                            Text="Veltrio ne fournit aucun contenu : il affiche ce que renvoient les sources que vous installez." />
                 <TextBlock Style="{StaticResource VeltrioBody}" FontSize="12"

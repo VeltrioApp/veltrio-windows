@@ -73,5 +73,7 @@ public partial class App : Application
         if (_light) ApplyLightPalette();
         _window = new MainWindow();
         _window.Activate();
+        // An installed copy looks for an update in the background.
+        _ = Services.Updater.CheckAsync();
     }
 }

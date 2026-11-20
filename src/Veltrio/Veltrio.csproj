@@ -25,6 +25,8 @@
     <!-- Generated bindings trip nullable and naming analyzers. -->
     <NoWarn>$(NoWarn);CS8618;CS8625;CS8603;CS0108;CS1591</NoWarn>
     <Version>0.1.0</Version>
+    <!-- Program.cs is the entry point, so Velopack runs before XAML starts. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -35,6 +37,8 @@
     <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
     <PackageReference Include="Vortice.DXGI" Version="3.8.3" />
     <PackageReference Include="Avalonia.Angle.Windows.Natives" Version="2.1.25547.20250602" />
+    <!-- Installer and updates from the GitHub releases. -->
+    <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 
   <!-- Account services' app ids, from environment variables; empty = the

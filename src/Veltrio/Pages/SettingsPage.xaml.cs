@@ -17,7 +17,8 @@ public sealed partial class SettingsPage : Page
     {
         InitializeComponent();
         DataFolder.Text = Storage.Folder;
-        var app = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+        // The informational version keeps a pre-release suffix (0.1.0-beta.3).
+        var app = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "?";
         string core;
         try { core = CoreService.Version; }
         catch { core = "indisponible"; }
@@ -34,6 +35,8 @@ public sealed partial class SettingsPage : Page
         TraktService.Changed += OnAccountsChanged;
         SimklService.Changed += OnAccountsChanged;
         DownloadManager.Changed += OnDownloadsChanged;
+        Updater.Changed += OnUpdaterChanged;
+        ShowUpdateState();
         BuildDebridCards();
         BuildAccountCards();
         BuildDownloads();
@@ -46,6 +49,35 @@ public sealed partial class SettingsPage : Page
         TraktService.Changed -= OnAccountsChanged;
         SimklService.Changed -= OnAccountsChanged;
         DownloadManager.Changed -= OnDownloadsChanged;
+        Updater.Changed -= OnUpdaterChanged;
+    }
+
+    private void OnUpdaterChanged() => DispatcherQueue.TryEnqueue(ShowUpdateState);
+
+    // -------------------- updates --------------------
+
+    private void ShowUpdateState()
+    {
+        UpdateButton.IsEnabled = Updater.State is Updater.UpdateState.Idle or Updater.UpdateState.UpToDate
+            or Updater.UpdateState.Failed or Updater.UpdateState.Ready;
+        UpdateLabel.Text = Updater.State == Updater.UpdateState.Ready ? "REDÉMARRER POUR METTRE À JOUR" : "RECHERCHER UNE MISE À JOUR";
+        UpdateStatus.Text = Updater.State switch
+        {
+            Updater.UpdateState.NotInstalled => "Les mises à jour automatiques concernent la version installée (Veltrio-win-Setup.exe).",
+            Updater.UpdateState.Checking => "Recherche…",
+            Updater.UpdateState.UpToDate => $"Veltrio {Updater.CurrentVersion} est à jour.",
+            Updater.UpdateState.Downloading => $"Téléchargement de la version {Updater.NewVersion}…",
+            Updater.UpdateState.Ready => $"La version {Updater.NewVersion} s'installera à la fermeture de l'app.",
+            Updater.UpdateState.Failed => $"Recherche impossible : {Updater.Error}",
+            _ => "",
+        };
+        if (Updater.State == Updater.UpdateState.NotInstalled) UpdateButton.Visibility = Visibility.Collapsed;
+    }
+
+    private void OnUpdate(object sender, RoutedEventArgs e)
+    {
+        if (Updater.State == Updater.UpdateState.Ready) Updater.RestartNow();
+        else _ = Updater.CheckAsync();
     }
 
     private void OnDownloadsChanged() => DispatcherQueue.TryEnqueue(BuildDownloads);
