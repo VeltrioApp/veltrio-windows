@@ -96,6 +96,17 @@
                 <TextBlock x:Name="PlaylistError" Foreground="{StaticResource VeltrioDangerBrush}" TextWrapping="Wrap"
                            Visibility="Collapsed" />
             </StackPanel>
+
+            <!-- 05 — Media servers -->
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="05 —" Style="{StaticResource VeltrioNumeral}" VerticalAlignment="Center" />
+                    <TextBlock Text="Serveurs média" Style="{StaticResource VeltrioSectionTitle}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource VeltrioBody}" FontSize="13"
+                           Text="Vos propres bibliothèques Jellyfin, Emby ou Plex : parcourez-les dans la Collection, et leurs copies d'un titre apparaissent parmi les flux de sa fiche." />
+                <StackPanel x:Name="ServerCards" Spacing="12" />
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

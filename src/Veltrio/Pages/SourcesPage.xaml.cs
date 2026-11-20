@@ -10,8 +10,8 @@ using Windows.System;
 
 namespace Veltrio.Pages;
 
-/// <summary>Addons (install, enable, order, remove), suggestions, and the
-/// IPTV playlists.</summary>
+/// <summary>Addons (install, enable, order, remove), suggestions, the
+/// IPTV playlists and the media servers.</summary>
 public sealed partial class SourcesPage : Page
 {
     public SourcesPage()
@@ -19,7 +19,16 @@ public sealed partial class SourcesPage : Page
         InitializeComponent();
     }
 
-    protected override void OnNavigatedTo(NavigationEventArgs e) => Refresh();
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        MediaServers.Changed += OnServersChanged;
+        Refresh();
+        BuildServerCards();
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e) => MediaServers.Changed -= OnServersChanged;
+
+    private void OnServersChanged() => DispatcherQueue.TryEnqueue(BuildServerCards);
 
     private static T Res<T>(string key) => (T)Application.Current.Resources[key];
 
@@ -203,5 +212,86 @@ public sealed partial class SourcesPage : Page
     private async void OnAddPlaylist(object sender, RoutedEventArgs e)
     {
         if (await AddPlaylistDialog.ShowAsync(XamlRoot)) Refresh();
+    }
+
+    // -------------------- media servers --------------------
+
+    // What's typed in a Jellyfin / Emby form survives the card being rebuilt.
+    private readonly Dictionary<MediaServerKind, (string Url, string User)> _serverForms = new();
+
+    private void BuildServerCards()
+    {
+        ServerCards.Children.Clear();
+        foreach (var server in MediaServers.All) ServerCards.Children.Add(ServerCard(server));
+    }
+
+    private FrameworkElement ServerCard(MediaServer server)
+    {
+        var status = server.IsConnected
+            ? string.Join(" · ", new[] { "CONNECTÉ", server.User?.ToUpperInvariant(), server.Host?.ToUpperInvariant() }.OfType<string>())
+            : server is PlexServer ? "Connexion par code sur plex.tv, sans mot de passe." : "Adresse du serveur, nom d'utilisateur et mot de passe.";
+        var (card, actions) = ServiceCard.Shell(server.Name, server.Color, status, server.IsConnected);
+        if (server.IsConnected)
+        {
+            actions.Children.Add(ServiceCard.ActionButton("PARCOURIR", ghost: false, () =>
+            {
+                LibraryPage.RequestedServer = server.Kind;
+                Navigator.Window.ShowSection(1);
+            }));
+            actions.Children.Add(ServiceCard.ActionButton("DÉCONNECTER", ghost: true, server.Disconnect));
+        }
+        else if (server is PlexServer plex)
+        {
+            if (plex.PendingCode is { } code)
+            {
+                actions.Children.Add(ServiceCard.ActionButton("ANNULER", ghost: true, plex.CancelPinFlow));
+                ServiceCard.AddRow(card, ServiceCard.CodePanel(code, plex.PendingUrl!));
+            }
+            else
+            {
+                actions.Children.Add(ServiceCard.ActionButton(plex.IsBusy ? "…" : "CONNECTER", ghost: false,
+                    () => _ = plex.StartPinFlowAsync(), enabled: !plex.IsBusy));
+            }
+        }
+        else if (server is MediaBrowserServer browser)
+        {
+            ServiceCard.AddRow(card, LoginRow(browser));
+        }
+        ServiceCard.AddError(card, server.Error);
+        return card;
+    }
+
+    private FrameworkElement LoginRow(MediaBrowserServer server)
+    {
+        var form = _serverForms.TryGetValue(server.Kind, out var typed) ? typed : (Url: server.Url ?? "", User: "");
+        var row = new Grid { ColumnSpacing = 10 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var url = new TextBox { PlaceholderText = $"http://{server.Name.ToLowerInvariant()}.local:8096", Text = form.Url, FontFamily = Res<FontFamily>("VeltrioMono") };
+        var user = new TextBox { PlaceholderText = "Utilisateur", Text = form.User };
+        var password = new PasswordBox { PlaceholderText = "Mot de passe" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(url, $"Adresse {server.Name}");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(user, $"Utilisateur {server.Name}");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(password, $"Mot de passe {server.Name}");
+        void Remember() => _serverForms[server.Kind] = (url.Text, user.Text);
+        url.TextChanged += (_, _) => Remember();
+        user.TextChanged += (_, _) => Remember();
+        void Connect()
+        {
+            if (url.Text.Trim().Length > 0 && user.Text.Trim().Length > 0)
+                _ = server.ConnectAsync(url.Text, user.Text, password.Password);
+        }
+        password.KeyDown += (_, e) => { if (e.Key == VirtualKey.Enter) Connect(); };
+        row.Children.Add(url);
+        Grid.SetColumn(user, 1);
+        row.Children.Add(user);
+        Grid.SetColumn(password, 2);
+        row.Children.Add(password);
+        var connect = ServiceCard.ActionButton(server.IsBusy ? "CONNEXION…" : "CONNECTER", ghost: false, Connect, enabled: !server.IsBusy);
+        Grid.SetColumn(connect, 3);
+        row.Children.Add(connect);
+        return row;
     }
 }

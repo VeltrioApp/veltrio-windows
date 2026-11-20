@@ -8,7 +8,8 @@ using Veltrio.Services;
 namespace Veltrio.Pages;
 
 /// <summary>Collection: saved titles and everything started, with the
-/// same filters as macOS. Right-click for watched / remove.</summary>
+/// same filters as macOS (right-click for watched / remove), or one
+/// connected media server's libraries, a page at a time.</summary>
 public sealed partial class LibraryPage : Page
 {
     private static readonly (string Key, string Label)[] Filters =
@@ -20,8 +21,23 @@ public sealed partial class LibraryPage : Page
         ("all", "TOUS LES TYPES"), ("movie", "FILMS"), ("series", "SÉRIES"),
     };
 
+    private const int PageSize = 60;
+
     private string _filter = "all";
     private string _type = "all";
+
+    /// <summary>Set before showing the Collection to open on a server's
+    /// libraries (Sources → Parcourir).</summary>
+    public static MediaServerKind? RequestedServer { get; set; }
+
+    // What a server shows survives leaving the page for a title or the
+    // player and coming back.
+    private static MediaServerKind? _server;
+    private static MediaLibrarySection? _section;
+    private static IReadOnlyList<MediaLibrarySection> _sections = Array.Empty<MediaLibrarySection>();
+    private static List<MediaLibraryItem> _items = new();
+    private static int _total;
+    private bool _loading;
 
     public LibraryPage()
     {
@@ -30,7 +46,60 @@ public sealed partial class LibraryPage : Page
         BuildChips(TypeChips, Types, () => _type, v => _type = v);
     }
 
-    protected override void OnNavigatedTo(NavigationEventArgs e) => Refresh();
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        if (RequestedServer is { } requested && requested != _server)
+        {
+            _server = requested;
+            _sections = Array.Empty<MediaLibrarySection>();
+            _section = null;
+            _items = new();
+        }
+        RequestedServer = null;
+        if (_server is { } kind && !Server(kind).IsConnected) _server = null;
+        BuildSourceTabs();
+        Refresh();
+    }
+
+    private static MediaServer Server(MediaServerKind kind) => MediaServers.All.First(s => s.Kind == kind);
+
+    private void BuildSourceTabs()
+    {
+        SourceTabs.Children.Clear();
+        var servers = MediaServers.Connected.ToList();
+        SourceTabs.Visibility = servers.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (servers.Count == 0) return;
+        void Add(string label, MediaServerKind? kind)
+        {
+            var tab = new ToggleButton { Content = label, IsChecked = kind == _server, Style = (Style)Application.Current.Resources["VeltrioChip"] };
+            tab.Click += (_, _) =>
+            {
+                if (kind != _server)
+                {
+                    _server = kind;
+                    _sections = Array.Empty<MediaLibrarySection>();
+                    _section = null;
+                    _items = new();
+                }
+                BuildSourceTabs();
+                Refresh();
+            };
+            SourceTabs.Children.Add(tab);
+        }
+        Add("ENREGISTRÉS", null);
+        foreach (var server in servers) Add(server.Name.ToUpperInvariant(), server.Kind);
+    }
+
+    private void Refresh()
+    {
+        var onServer = _server is not null;
+        SavedFilters.Visibility = onServer ? Visibility.Collapsed : Visibility.Visible;
+        SectionChips.Visibility = onServer ? Visibility.Visible : Visibility.Collapsed;
+        Items.Visibility = onServer ? Visibility.Collapsed : Visibility.Visible;
+        ServerItems.Visibility = onServer ? Visibility.Visible : Visibility.Collapsed;
+        if (_server is { } kind) _ = ShowServerAsync(Server(kind));
+        else RefreshSaved();
+    }
 
     private void BuildChips(Panel panel, (string Key, string Label)[] options, Func<string> get, Action<string> set)
     {
@@ -47,8 +116,11 @@ public sealed partial class LibraryPage : Page
         }
     }
 
-    private void Refresh()
+    private void RefreshSaved()
     {
+        ServerLoading.IsActive = false;
+        EmptyTitle.Text = "Rien d'enregistré,\npour l'instant.";
+        EmptyBody.Text = "Enregistrez un titre depuis sa fiche : il arrive ici, avec tout ce que vous avez commencé à regarder.";
         var all = WatchStore.LibraryItems;
         var items = all
             .Where(e => _type == "all" || e.Type == _type)
@@ -97,5 +169,110 @@ public sealed partial class LibraryPage : Page
         forget.Click += (_, _) => { WatchStore.Remove(entry.Type, entry.ContentId); Refresh(); };
         menu.Items.Add(forget);
         menu.ShowAt((FrameworkElement)e.OriginalSource, e.GetPosition((FrameworkElement)e.OriginalSource));
+    }
+
+    // -------------------- media server --------------------
+
+    private async Task ShowServerAsync(MediaServer server)
+    {
+        Eyebrow.Text = $"{server.Name.ToUpperInvariant()} · {server.User?.ToUpperInvariant()}";
+        EmptyState.Visibility = Visibility.Collapsed;
+        if (_sections.Count == 0)
+        {
+            ServerLoading.IsActive = true;
+            _sections = await server.SectionsAsync();
+            ServerLoading.IsActive = false;
+            if (_server != server.Kind) return;
+            _section = _sections.FirstOrDefault();
+        }
+        BuildSectionChips();
+        if (_section is null)
+        {
+            ShowEmpty("Aucune bibliothèque.", "Ce serveur n'a pas de bibliothèque de films ou de séries, ou ne répond pas.");
+            return;
+        }
+        if (_items.Count == 0) await LoadPageAsync(server);
+        else ShowItems();
+    }
+
+    private void BuildSectionChips()
+    {
+        SectionChips.Children.Clear();
+        foreach (var section in _sections)
+        {
+            var chip = new ToggleButton { Content = section.Name.ToUpperInvariant(), IsChecked = section == _section, Style = (Style)Application.Current.Resources["VeltrioChip"] };
+            chip.Click += (_, _) =>
+            {
+                if (_server is not { } kind) return;
+                _section = section;
+                _items = new();
+                _total = 0;
+                BuildSectionChips();
+                _ = LoadPageAsync(Server(kind));
+            };
+            SectionChips.Children.Add(chip);
+        }
+    }
+
+    private async Task LoadPageAsync(MediaServer server)
+    {
+        if (_section is not { } section || _loading) return;
+        _loading = true;
+        ServerLoading.IsActive = _items.Count == 0;
+        LoadMore.IsEnabled = false;
+        var page = await server.ItemsAsync(section, _items.Count, PageSize);
+        _loading = false;
+        ServerLoading.IsActive = false;
+        LoadMore.IsEnabled = true;
+        // The library may have changed while the page was loading.
+        if (section != _section || _server != server.Kind) return;
+        _items.AddRange(page.Items);
+        _total = page.Total;
+        ShowItems();
+    }
+
+    private void ShowItems()
+    {
+        ServerItems.ItemsSource = null;
+        ServerItems.ItemsSource = _items;
+        LoadMore.Visibility = _items.Count < _total ? Visibility.Visible : Visibility.Collapsed;
+        if (_items.Count == 0) ShowEmpty("Bibliothèque vide.", "Cette bibliothèque ne contient aucun film ni aucune série.");
+        else EmptyState.Visibility = Visibility.Collapsed;
+    }
+
+    private void ShowEmpty(string title, string body)
+    {
+        EmptyTitle.Text = title;
+        EmptyBody.Text = body;
+        EmptyState.Visibility = Visibility.Visible;
+    }
+
+    private void OnLoadMore(object sender, RoutedEventArgs e)
+    {
+        if (_server is { } kind) _ = LoadPageAsync(Server(kind));
+    }
+
+    /// <summary>Identified titles open on their title page, where this copy
+    /// sits among the other sources. Films the server couldn't identify
+    /// play directly; such series list their episodes.</summary>
+    private void OnServerItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (_server is not { } kind) return;
+        var server = Server(kind);
+        var item = (MediaLibraryItem)e.ClickedItem;
+        if (item.ImdbId is { } imdb && CoreService.MetaAddon(item.Type) is { } addon)
+            Navigator.Go(typeof(DetailPage), new DetailRequest(addon, item.Type, imdb, item.Title, item.PosterUrl));
+        else if (item.Type == "series")
+            Navigator.Go(typeof(MediaServerSeriesPage), new MediaServerSeriesRequest(server, item));
+        else if ((item.StreamUrl ?? server.StreamUrl(item.Id)) is { } url)
+            Navigator.Play(new PlayRequest
+            {
+                Title = item.Title,
+                Subtitle = server.Name,
+                Url = url,
+                ContentType = "server",
+                ContentId = $"{kind}-{item.Id}".ToLowerInvariant(),
+                Poster = item.PosterUrl,
+            });
     }
 }

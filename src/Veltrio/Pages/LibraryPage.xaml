@@ -12,10 +12,16 @@
         <StackPanel Spacing="10" Padding="0,0,48,24">
             <TextBlock x:Name="Eyebrow" Style="{StaticResource VeltrioAccentEyebrow}" />
             <TextBlock Text="Collection" Style="{StaticResource VeltrioPageTitle}" />
-            <Grid Margin="0,8,0,0">
+            <!-- The titles saved in the app, or a connected media server's own libraries. -->
+            <StackPanel x:Name="SourceTabs" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" Visibility="Collapsed" />
+            <Grid x:Name="SavedFilters" Margin="0,8,0,0">
                 <StackPanel x:Name="FilterChips" Orientation="Horizontal" Spacing="8" />
                 <StackPanel x:Name="TypeChips" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" />
             </Grid>
+            <ScrollViewer HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled"
+                          VerticalScrollBarVisibility="Disabled" Margin="0,8,0,0">
+                <StackPanel x:Name="SectionChips" Orientation="Horizontal" Spacing="8" Visibility="Collapsed" />
+            </ScrollViewer>
             <Border Style="{StaticResource VeltrioRule}" Margin="0,8,0,0" />
         </StackPanel>
 
@@ -30,5 +36,18 @@
         <GridView x:Name="Items" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnItemClick"
                   ItemTemplate="{StaticResource LibraryTemplate}" ItemContainerStyle="{StaticResource VeltrioBareGridItem}"
                   Padding="0,0,30,40" RightTapped="OnItemRightTapped" />
+
+        <ProgressRing x:Name="ServerLoading" Grid.Row="1" Width="26" Height="26" HorizontalAlignment="Left" VerticalAlignment="Top"
+                      Margin="0,24,0,0" />
+        <GridView x:Name="ServerItems" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnServerItemClick"
+                  ItemTemplate="{StaticResource PosterTemplate}" ItemContainerStyle="{StaticResource VeltrioBareGridItem}"
+                  Padding="0,0,30,40" Visibility="Collapsed">
+            <GridView.Footer>
+                <Button x:Name="LoadMore" Style="{StaticResource VeltrioGhostButton}" Margin="0,18,0,0" Visibility="Collapsed"
+                        Click="OnLoadMore">
+                    <TextBlock Text="CHARGER LA SUITE" />
+                </Button>
+            </GridView.Footer>
+        </GridView>
     </Grid>
 </Page>
