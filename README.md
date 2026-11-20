@@ -61,14 +61,17 @@ titles), French UI.
   with a countdown (N), full screen. Resume and progress. A log goes to
   `player.log` in the data folder.
 
-Not yet on Windows: casting — its client lives in Swift on macOS, not in
-the core.
-
 - **Downloads**: right-click a stream on a title page to save it for
   offline (resolved like playback: direct, debrid or the local torrent
   engine), with pause and resume (HTTP ranges). A finished copy is listed
   first among the title's streams and plays from disk with the title's
   progress; the list (play, pause, resume, delete) is in Settings.
+- **Chromecast**: the player's cast button lists the Chromecasts found
+  over DNS-SD (Windows' own discovery) and hands them the stream at the
+  current position, speaking Cast V2 itself (TLS, hand-encoded protobuf
+  messages, the Default Media Receiver). The device fetches the URL, so
+  torrents played by the local engine can't be cast; debrid, IPTV, media
+  servers and addon links can.
 - **Settings**: playback defaults (preferred audio and subtitle language,
   decoder, network buffer, next-episode countdown), theme (dark, a warm
   light one, or Windows' mode; applied at launch, with a restart button),

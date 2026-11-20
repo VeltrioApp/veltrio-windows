@@ -68,6 +68,9 @@ public sealed partial class PlayerPage : Page
         if (e.Parameter is not PlayRequest request) return;
         _request = request;
         _scrobbler = new Scrobbler(request);
+        ChromecastService.Changed += OnCastChanged;
+        ChromecastService.StartDiscovery();
+        UpdateCastBanner();
         TitleText.Text = request.Title;
         SubtitleText.Text = request.Subtitle ?? "";
         LiveBadge.Visibility = request.IsLive ? Visibility.Visible : Visibility.Collapsed;
@@ -448,6 +451,57 @@ public sealed partial class PlayerPage : Page
         Navigator.Zap(next);
     }
 
+    // -------------------- Chromecast --------------------
+
+    private void OnCastChanged() => DispatcherQueue.TryEnqueue(UpdateCastBanner);
+
+    private void UpdateCastBanner()
+    {
+        var state = ChromecastService.State;
+        CastBanner.Visibility = state == ChromecastService.CastState.Idle ? Visibility.Collapsed : Visibility.Visible;
+        CastText.Text = state switch
+        {
+            ChromecastService.CastState.Connecting => $"Connexion à {ChromecastService.DeviceName}…",
+            ChromecastService.CastState.Casting => $"Lecture sur {ChromecastService.DeviceName}",
+            _ => ChromecastService.Error ?? "",
+        };
+    }
+
+    /// <summary>The devices found so far, or why this stream can't go to a TV.</summary>
+    private void OnCastOpening(object sender, object e)
+    {
+        CastMenu.Items.Clear();
+        void Note(string text) => CastMenu.Items.Add(new MenuFlyoutItem { Text = text, IsEnabled = false });
+        if (!ChromecastService.CanCast(_url))
+            Note("Ce flux se lit depuis ce PC (torrent ou fichier) : un Chromecast ne peut pas le récupérer. Un service debrid le rend diffusable.");
+        else if (ChromecastService.Devices.Count == 0)
+            Note("Recherche de Chromecasts sur le réseau…");
+        else
+            foreach (var device in ChromecastService.Devices)
+            {
+                var item = new MenuFlyoutItem { Text = device.Name, Icon = new FontIcon { Glyph = "\uE7F4" } };
+                item.Click += (_, _) => CastTo(device);
+                CastMenu.Items.Add(item);
+            }
+        if (ChromecastService.IsCasting)
+        {
+            var stop = new MenuFlyoutItem { Text = "Arrêter la diffusion" };
+            stop.Click += (_, _) => ChromecastService.Stop();
+            CastMenu.Items.Add(new MenuFlyoutSeparator());
+            CastMenu.Items.Add(stop);
+        }
+    }
+
+    /// <summary>Hands the stream to the TV at the current position and pauses here.</summary>
+    private void CastTo(ChromecastService.Device device)
+    {
+        if (_url is null) return;
+        ChromecastService.Cast(device, _url, _request.Title, _request.Poster, _request.IsLive, _player?.Position ?? 0);
+        if (_player is { IsPaused: false }) _player.TogglePause();
+    }
+
+    private void OnStopCasting(object sender, RoutedEventArgs e) => ChromecastService.Stop();
+
     // -------------------- media info --------------------
 
     private void OnToggleInfo(object sender, RoutedEventArgs e) => ToggleInfo();
@@ -799,6 +853,8 @@ public sealed partial class PlayerPage : Page
         _closing = true;
         ReportProgress();
         if (_player is not null) _scrobbler.Stop(_player.Position, _player.Duration);
+        ChromecastService.Changed -= OnCastChanged;
+        ChromecastService.StopDiscovery();
         _progressTimer?.Stop();
         _hideTimer?.Stop();
         _epgTimer?.Stop();

@@ -91,6 +91,16 @@
         </Grid>
 
         <!-- Live: the playlist's channels, to zap without leaving. -->
+        <!-- Casting: the video plays on the TV, this says where. -->
+        <Border x:Name="CastBanner" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,96,0,0" Padding="18,10"
+                Background="#E6080808" BorderBrush="{StaticResource VeltrioAccentBrush}" BorderThickness="1" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" Spacing="14">
+                <FontIcon Glyph="&#xEC15;" FontSize="14" Foreground="{StaticResource VeltrioAccentBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="CastText" Foreground="#FAF7F2" FontSize="13" VerticalAlignment="Center" />
+                <Button Style="{StaticResource VeltrioLinkButton}" Foreground="#FAF7F2" Click="OnStopCasting" Content="ARRÊTER" />
+            </StackPanel>
+        </Border>
+
         <Grid x:Name="ChannelPanel" Width="380" HorizontalAlignment="Right" Background="#E6080808" Visibility="Collapsed"
               Padding="0,70,0,110">
             <Grid.RowDefinitions>
@@ -262,6 +272,13 @@
                     <Button x:Name="InfoButton" Style="{StaticResource PlayerIconButton}" Click="OnToggleInfo"
                             ToolTipService.ToolTip="Infos média (I)" AutomationProperties.Name="Infos média">
                         <FontIcon Glyph="&#xE946;" FontSize="16" />
+                    </Button>
+                    <Button x:Name="CastButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Diffuser sur un Chromecast"
+                            AutomationProperties.Name="Chromecast">
+                        <FontIcon Glyph="&#xEC15;" FontSize="16" />
+                        <Button.Flyout>
+                            <MenuFlyout x:Name="CastMenu" Placement="Top" Opening="OnCastOpening" />
+                        </Button.Flyout>
                     </Button>
                     <Button x:Name="SettingsButton" Style="{StaticResource PlayerIconButton}" ToolTipService.ToolTip="Image, son et décalages"
                             AutomationProperties.Name="Réglages de lecture">
