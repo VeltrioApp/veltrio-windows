@@ -7,6 +7,7 @@ public enum AppTheme { System, Dark, Light }
 public sealed class AppPrefs
 {
     public AppTheme Theme { get; set; } = AppTheme.Dark;
+    public bool OnboardingDone { get; set; }
 
     private const string File = "app-prefs.json";
     private static AppPrefs? _current;

@@ -131,6 +131,9 @@
                     <Button x:Name="UpdateButton" Style="{StaticResource VeltrioGhostButton}" Click="OnUpdate">
                         <TextBlock x:Name="UpdateLabel" Text="RECHERCHER UNE MISE À JOUR" />
                     </Button>
+                    <Button Style="{StaticResource VeltrioGhostButton}" Click="OnShowOnboarding">
+                        <TextBlock Text="AFFICHER L'ASSISTANT DE BIENVENUE" />
+                    </Button>
                     <TextBlock x:Name="UpdateStatus" Style="{StaticResource VeltrioBody}" FontSize="12" VerticalAlignment="Center"
                                TextWrapping="Wrap" />
                 </StackPanel>

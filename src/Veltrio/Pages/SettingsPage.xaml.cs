@@ -80,6 +80,13 @@ public sealed partial class SettingsPage : Page
         else _ = Updater.CheckAsync();
     }
 
+    private void OnShowOnboarding(object sender, RoutedEventArgs e)
+    {
+        AppPrefs.Current.OnboardingDone = false;
+        AppPrefs.Current.Save();
+        Navigator.Go(typeof(OnboardingPage));
+    }
+
     private void OnDownloadsChanged() => DispatcherQueue.TryEnqueue(BuildDownloads);
 
     private void OnDebridChanged() => DispatcherQueue.TryEnqueue(BuildDebridCards);

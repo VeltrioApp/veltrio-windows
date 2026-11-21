@@ -65,5 +65,27 @@
         <Border x:Name="NavRule" Grid.Row="1" VerticalAlignment="Bottom" Style="{StaticResource VeltrioRule}" />
 
         <Frame x:Name="ContentFrame" Grid.Row="2" />
+
+        <!-- Subtle amber update banner when Velopack has downloaded a new release. -->
+        <Border x:Name="UpdateBanner" Grid.Row="2" VerticalAlignment="Top" Visibility="Collapsed"
+                Margin="48,14,48,0" Padding="20,12"
+                Background="{StaticResource VeltrioSurfaceElevatedBrush}"
+                BorderBrush="{StaticResource VeltrioAccentBrush}" BorderThickness="1">
+            <Grid ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="UpdateBannerText" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{StaticResource VeltrioTextPrimaryBrush}" />
+                <Button Grid.Column="1" Style="{StaticResource VeltrioPrimaryButton}" Click="OnUpdateBannerRestart">
+                    <TextBlock Text="REDÉMARRER POUR METTRE À JOUR" />
+                </Button>
+                <Button Grid.Column="2" Style="{StaticResource VeltrioGhostButton}" Click="OnUpdateBannerDismiss">
+                    <TextBlock Text="PLUS TARD" />
+                </Button>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

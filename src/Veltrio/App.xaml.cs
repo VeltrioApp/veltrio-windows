@@ -75,5 +75,7 @@ public partial class App : Application
         _window.Activate();
         // An installed copy looks for an update in the background.
         _ = Services.Updater.CheckAsync();
+        // Keep Stremio watch history fresh at launch when signed in.
+        _ = Services.StremioAccountService.SyncOnLaunchIfNeededAsync();
     }
 }

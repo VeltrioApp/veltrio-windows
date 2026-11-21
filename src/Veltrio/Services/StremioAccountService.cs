@@ -13,6 +13,15 @@ public static class StremioAccountService
     private const string EmailSecret = "stremio.email";
 
     private static string? _authKey = SecretStore.Get(KeySecret);
+    private static bool _didLaunchSync;
+
+    /// <summary>Silently syncs Stremio watch history once per app launch.</summary>
+    public static async Task SyncOnLaunchIfNeededAsync()
+    {
+        if (_didLaunchSync || !IsConnected) return;
+        _didLaunchSync = true;
+        await ImportLibraryAsync();
+    }
 
     public static string? Email { get; private set; } = SecretStore.Get(EmailSecret);
     public static bool IsConnected => _authKey is not null;

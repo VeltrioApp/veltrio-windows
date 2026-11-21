@@ -50,7 +50,30 @@ public sealed partial class MainWindow : Window
         Content.KeyboardAccelerators.Add(back);
         Content.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
 
-        ShowSection(0);
+        Services.Updater.Changed += OnUpdaterChanged;
+        Closed += (_, _) => Services.Updater.Changed -= OnUpdaterChanged;
+        RefreshUpdateBanner();
+
+        if (!Services.AppPrefs.Current.OnboardingDone)
+        {
+            var alreadyConfigured = Services.CoreService.Addons.Count > 0
+                || Services.IptvStore.Playlists.Count > 0
+                || Services.MediaServers.Connected.Any();
+            if (alreadyConfigured)
+            {
+                Services.AppPrefs.Current.OnboardingDone = true;
+                Services.AppPrefs.Current.Save();
+                ShowSection(0);
+            }
+            else
+            {
+                ContentFrame.Navigate(typeof(OnboardingPage));
+            }
+        }
+        else
+        {
+            ShowSection(0);
+        }
     }
 
     /// <summary>1440×920 DIPs, scaled to the display, capped to its work
@@ -119,15 +142,39 @@ public sealed partial class MainWindow : Window
 
     private void OnNavigated(object sender, NavigationEventArgs e)
     {
-        // The player takes the whole window; everything else sits under the nav.
-        var chrome = e.SourcePageType == typeof(PlayerPage) ? Visibility.Collapsed : Visibility.Visible;
+        // The player and onboarding take the whole window; everything else sits under the nav.
+        var fullWindow = e.SourcePageType == typeof(PlayerPage) || e.SourcePageType == typeof(OnboardingPage);
+        var chrome = fullWindow ? Visibility.Collapsed : Visibility.Visible;
         NavBar.Visibility = NavRule.Visibility = chrome;
-        TitleBar.Visibility = chrome;
+        TitleBar.Visibility = e.SourcePageType == typeof(PlayerPage) ? Visibility.Collapsed : Visibility.Visible;
         if (chrome == Visibility.Visible && AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen)
             AppWindow.SetPresenter(AppWindowPresenterKind.Default);
 
         var section = Array.FindIndex(Sections, s => s.Page == e.SourcePageType);
         if (section >= 0) { _section = section; UpdateTabs(); }
+        RefreshUpdateBanner();
+    }
+
+    private bool _updateBannerDismissed;
+
+    private void OnUpdaterChanged() => DispatcherQueue.TryEnqueue(RefreshUpdateBanner);
+
+    private void RefreshUpdateBanner()
+    {
+        var show = !_updateBannerDismissed
+            && Services.Updater.State == Services.Updater.UpdateState.Ready
+            && ContentFrame.Content is not PlayerPage
+            && ContentFrame.Content is not OnboardingPage;
+        UpdateBanner.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (show) UpdateBannerText.Text = $"Veltrio {Services.Updater.NewVersion} est prêt à installer.";
+    }
+
+    private void OnUpdateBannerRestart(object sender, RoutedEventArgs e) => Services.Updater.RestartNow();
+
+    private void OnUpdateBannerDismiss(object sender, RoutedEventArgs e)
+    {
+        _updateBannerDismissed = true;
+        UpdateBanner.Visibility = Visibility.Collapsed;
     }
 
     private void OnWordmarkClick(object sender, RoutedEventArgs e) => ShowSection(0);
