@@ -5,3 +5,7 @@ obj/
 *.user
 dist/
 mpv/
+Releases/
+.DS_Store
+.idea/
+.vscode/
