@@ -99,6 +99,7 @@ public static class IptvStore
     {
         _playlists.RemoveAll(p => p.Id == playlist.Id);
         foreach (var key in _cache.Keys.Where(k => k.Item1 == playlist.Id).ToList()) _cache.Remove(key);
+        IptvCache.Remove(playlist.Id);
         if (playlist.IsXtream) SecretStore.Set(SecretName(playlist.Id), null);
         Storage.Save(File, _playlists);
         Changed?.Invoke();
@@ -107,15 +108,34 @@ public static class IptvStore
     // -------------------- content --------------------
 
     /// <summary>Live channels (M3U or Xtream), or an Xtream account's films
-    /// or series. Loaded once per session unless <paramref name="refresh"/>.</summary>
+    /// or series. Loaded once per session unless <paramref name="refresh"/>,
+    /// and from the copy in <see cref="IptvCache"/> while it's fresh: the
+    /// provider isn't asked at every start. A stale copy is still used when
+    /// the provider can't be reached.</summary>
     public static Task<IReadOnlyList<ChannelItem>> ItemsAsync(PlaylistRef playlist, ChannelKind kind = ChannelKind.Live, bool refresh = false)
     {
         if (!playlist.IsXtream && kind != ChannelKind.Live) return Task.FromResult<IReadOnlyList<ChannelItem>>(Array.Empty<ChannelItem>());
         var key = (playlist.Id, kind);
         if (!refresh && _cache.TryGetValue(key, out var cached) && !cached.IsFaulted) return cached;
-        var task = LoadAsync(playlist, kind);
+        var task = CachedLoadAsync(playlist, kind, refresh);
         _cache[key] = task;
         return task;
+    }
+
+    private static async Task<IReadOnlyList<ChannelItem>> CachedLoadAsync(PlaylistRef playlist, ChannelKind kind, bool refresh)
+    {
+        var kept = refresh ? null : await IptvCache.LoadAsync(playlist, kind);
+        if (kept is { IsFresh: true }) return kept.Items;
+        try
+        {
+            var items = await LoadAsync(playlist, kind);
+            _ = IptvCache.SaveAsync(playlist, kind, items);
+            return items;
+        }
+        catch when (kept is not null)
+        {
+            return kept.Items;
+        }
     }
 
     private static async Task<IReadOnlyList<ChannelItem>> LoadAsync(PlaylistRef playlist, ChannelKind kind)

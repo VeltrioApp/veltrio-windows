@@ -46,6 +46,14 @@ public static class EpgStore
         {
             try
             {
+                // The guide kept in the cache, while it's fresh: providers
+                // limit requests, and this one is tens of megabytes.
+                if (!force && IptvCache.LoadGuide(playlist.Id) is { } kept)
+                {
+                    _loadedAt = kept.SavedAt;
+                    Apply(playlist.Id, kept.Programmes, kept.Matches);
+                    return;
+                }
                 var url = await GuideUrlAsync(playlist);
                 if (url is null)
                 {
@@ -54,6 +62,7 @@ public static class EpgStore
                 }
                 var (programmes, matches) = await FetchAndParseAsync(url, live);
                 Apply(playlist.Id, programmes, matches);
+                IptvCache.SaveGuide(playlist.Id, programmes, matches);
             }
             catch (Exception ex)
             {

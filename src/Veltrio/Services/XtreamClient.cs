@@ -368,6 +368,9 @@ public static class XtreamClient
         var url = $"{account.BaseUrl}/player_api.php?username={Uri.EscapeDataString(account.Username)}&password={Uri.EscapeDataString(account.Password)}"
                   + (action is null ? "" : $"&action={action}") + extra;
         using var response = await Http.GetAsync(url);
+        // 429, or 511 from some panels: too many requests or connections.
+        if ((int)response.StatusCode is 429 or 511)
+            throw new InvalidOperationException("Votre fournisseur IPTV limite les connexions. Réessayez dans quelques minutes.");
         if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"Le serveur Xtream a répondu {(int)response.StatusCode}.");
         var text = (await response.Content.ReadAsStringAsync()).Trim('﻿', ' ', '\r', '\n', '\t');
         if (text.Length == 0) return default;
