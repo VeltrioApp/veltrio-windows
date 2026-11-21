@@ -12,12 +12,14 @@ public static class Updater
     private const string Repository = "https://github.com/VeltrioApp/veltrio-windows";
 
     private static readonly UpdateManager Manager = new(new GithubSource(Repository, null, prerelease: true));
+    private static UpdateInfo? _pending;
     private static UpdateInfo? _ready;
 
-    public enum UpdateState { NotInstalled, Idle, Checking, UpToDate, Downloading, Ready, Failed }
+    public enum UpdateState { NotInstalled, Idle, Checking, UpToDate, Available, Downloading, Ready, Failed }
 
     public static UpdateState State { get; private set; } = Manager.IsInstalled ? UpdateState.Idle : UpdateState.NotInstalled;
     public static string? NewVersion { get; private set; }
+    public static int Progress { get; private set; }
     public static string? Error { get; private set; }
     public static string CurrentVersion => Manager.CurrentVersion?.ToString() ?? "développement";
 
@@ -30,8 +32,8 @@ public static class Updater
         Changed?.Invoke();
     }
 
-    /// <summary>Looks for a newer release and downloads it; it's applied
-    /// when the app closes, or right away with <see cref="RestartNow"/>.</summary>
+    /// <summary>Looks for a newer release and announces it so the user can
+    /// choose whether to download and install it.</summary>
     public static async Task CheckAsync()
     {
         if (!Manager.IsInstalled || State is UpdateState.Checking or UpdateState.Downloading or UpdateState.Ready) return;
@@ -41,16 +43,40 @@ public static class Updater
         {
             if (await Manager.CheckForUpdatesAsync() is not { } update)
             {
+                _pending = null;
                 Set(UpdateState.UpToDate);
                 return;
             }
+            _pending = update;
             NewVersion = update.TargetFullRelease.Version.ToString();
-            Set(UpdateState.Downloading);
-            await Manager.DownloadUpdatesAsync(update);
+            Set(UpdateState.Available);
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+            Set(UpdateState.Failed);
+        }
+    }
+
+    /// <summary>Downloads the announced release (reporting progress) and
+    /// restarts into it once ready.</summary>
+    public static async Task DownloadAndInstallAsync()
+    {
+        if (!Manager.IsInstalled || _pending is not { } update || State != UpdateState.Available) return;
+        Error = null;
+        Progress = 0;
+        Set(UpdateState.Downloading);
+        try
+        {
+            await Manager.DownloadUpdatesAsync(update, p =>
+            {
+                if (p == Progress) return;
+                Progress = p;
+                Changed?.Invoke();
+            });
             _ready = update;
-            // Applied as soon as the app exits, if not restarted before.
-            Manager.WaitExitThenApplyUpdates(update, silent: true, restart: false);
             Set(UpdateState.Ready);
+            Manager.ApplyUpdatesAndRestart(update);
         }
         catch (Exception ex)
         {

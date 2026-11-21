@@ -161,15 +161,47 @@ public sealed partial class MainWindow : Window
 
     private void RefreshUpdateBanner()
     {
+        var state = Services.Updater.State;
         var show = !_updateBannerDismissed
-            && Services.Updater.State == Services.Updater.UpdateState.Ready
+            && state is Services.Updater.UpdateState.Available
+                     or Services.Updater.UpdateState.Downloading
+                     or Services.Updater.UpdateState.Ready
             && ContentFrame.Content is not PlayerPage
             && ContentFrame.Content is not OnboardingPage;
         UpdateBanner.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        if (show) UpdateBannerText.Text = $"Veltrio {Services.Updater.NewVersion} est prêt à installer.";
+        if (!show) return;
+
+        var version = Services.Updater.NewVersion;
+        switch (state)
+        {
+            case Services.Updater.UpdateState.Available:
+                UpdateBannerText.Text = $"Une mise à jour est disponible (Veltrio {version}).";
+                UpdateBannerActionLabel.Text = "METTRE À JOUR";
+                UpdateBannerAction.IsEnabled = true;
+                UpdateBannerDismiss.Visibility = Visibility.Visible;
+                break;
+            case Services.Updater.UpdateState.Downloading:
+                UpdateBannerText.Text = $"Téléchargement de Veltrio {version}… {Services.Updater.Progress} %";
+                UpdateBannerActionLabel.Text = "TÉLÉCHARGEMENT…";
+                UpdateBannerAction.IsEnabled = false;
+                UpdateBannerDismiss.Visibility = Visibility.Collapsed;
+                break;
+            case Services.Updater.UpdateState.Ready:
+                UpdateBannerText.Text = $"Veltrio {version} est prêt à installer.";
+                UpdateBannerActionLabel.Text = "REDÉMARRER";
+                UpdateBannerAction.IsEnabled = true;
+                UpdateBannerDismiss.Visibility = Visibility.Visible;
+                break;
+        }
     }
 
-    private void OnUpdateBannerRestart(object sender, RoutedEventArgs e) => Services.Updater.RestartNow();
+    private void OnUpdateBannerAction(object sender, RoutedEventArgs e)
+    {
+        if (Services.Updater.State == Services.Updater.UpdateState.Available)
+            _ = Services.Updater.DownloadAndInstallAsync();
+        else if (Services.Updater.State == Services.Updater.UpdateState.Ready)
+            Services.Updater.RestartNow();
+    }
 
     private void OnUpdateBannerDismiss(object sender, RoutedEventArgs e)
     {

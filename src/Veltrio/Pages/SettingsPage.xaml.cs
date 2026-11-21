@@ -59,15 +59,21 @@ public sealed partial class SettingsPage : Page
     private void ShowUpdateState()
     {
         UpdateButton.IsEnabled = Updater.State is Updater.UpdateState.Idle or Updater.UpdateState.UpToDate
-            or Updater.UpdateState.Failed or Updater.UpdateState.Ready;
-        UpdateLabel.Text = Updater.State == Updater.UpdateState.Ready ? "REDÉMARRER POUR METTRE À JOUR" : "RECHERCHER UNE MISE À JOUR";
+            or Updater.UpdateState.Available or Updater.UpdateState.Failed or Updater.UpdateState.Ready;
+        UpdateLabel.Text = Updater.State switch
+        {
+            Updater.UpdateState.Available => "METTRE À JOUR",
+            Updater.UpdateState.Ready => "REDÉMARRER POUR METTRE À JOUR",
+            _ => "RECHERCHER UNE MISE À JOUR",
+        };
         UpdateStatus.Text = Updater.State switch
         {
             Updater.UpdateState.NotInstalled => "Les mises à jour automatiques concernent la version installée (Veltrio-win-Setup.exe).",
             Updater.UpdateState.Checking => "Recherche…",
             Updater.UpdateState.UpToDate => $"Veltrio {Updater.CurrentVersion} est à jour.",
-            Updater.UpdateState.Downloading => $"Téléchargement de la version {Updater.NewVersion}…",
-            Updater.UpdateState.Ready => $"La version {Updater.NewVersion} s'installera à la fermeture de l'app.",
+            Updater.UpdateState.Available => $"Une mise à jour est disponible (Veltrio {Updater.NewVersion}).",
+            Updater.UpdateState.Downloading => $"Téléchargement de la version {Updater.NewVersion}… {Updater.Progress} %",
+            Updater.UpdateState.Ready => $"La version {Updater.NewVersion} est prête à installer.",
             Updater.UpdateState.Failed => $"Recherche impossible : {Updater.Error}",
             _ => "",
         };
@@ -76,7 +82,8 @@ public sealed partial class SettingsPage : Page
 
     private void OnUpdate(object sender, RoutedEventArgs e)
     {
-        if (Updater.State == Updater.UpdateState.Ready) Updater.RestartNow();
+        if (Updater.State == Updater.UpdateState.Available) _ = Updater.DownloadAndInstallAsync();
+        else if (Updater.State == Updater.UpdateState.Ready) Updater.RestartNow();
         else _ = Updater.CheckAsync();
     }
 
