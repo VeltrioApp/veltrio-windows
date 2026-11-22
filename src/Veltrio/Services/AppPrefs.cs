@@ -12,6 +12,28 @@ public sealed class AppPrefs
     public bool OnboardingDone { get; set; }
     /// <summary>"" = follow Windows, "fr" / "en" / "es" / "de" / "it".</summary>
     public string AppLanguage { get; set; } = "";
+    public bool KidsMode { get; set; }
+    public string KidsPin { get; set; } = "";
+
+    private static readonly string[] AdultGroupKeywords =
+    {
+        "adult", "xxx", "18+", "+18", "porn", "erotic", "érotique", "erotique",
+        "charme", "nsfw", "x-rated", "for adults", "adults only", "sex",
+    };
+
+    public static bool IsAdultIptvGroup(string group)
+    {
+        var g = group.ToLowerInvariant();
+        return AdultGroupKeywords.Any(k => g.Contains(k, StringComparison.Ordinal));
+    }
+
+    public static void SetKidsMode(bool enabled)
+    {
+        Current.KidsMode = enabled;
+        Current.Save();
+        CoreService.ClearCatalogCache();
+        TmdbService.NotifyChanged();
+    }
 
     private const string File = "app-prefs.json";
     private static AppPrefs? _current;

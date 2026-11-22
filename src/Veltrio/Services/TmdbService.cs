@@ -51,6 +51,7 @@ public static class TmdbService
     public static string? Error { get; private set; }
 
     public static event Action? Changed;
+    public static void NotifyChanged() => Changed?.Invoke();
 
     private static string DefaultLanguage() => AppPrefs.IsFrench ? "fr-FR" : "en-US";
 
@@ -142,16 +143,28 @@ public static class TmdbService
         var lang = Language;
         var page = (skip / 20) + 1;
         var isSeries = string.Equals(type, "series", StringComparison.OrdinalIgnoreCase);
-        var path = (isSeries, catalogId) switch
+        var kids = AppPrefs.Current.KidsMode;
+        string? path;
+        if (kids)
         {
-            (false, "trending") => $"/trending/movie/week?language={lang}&page={page}",
-            (true, "trending") => $"/trending/tv/week?language={lang}&page={page}",
-            (false, "now_playing") => $"/movie/now_playing?language={lang}&page={page}",
-            (true, "on_the_air") => $"/tv/on_the_air?language={lang}&page={page}",
-            (false, "top_rated") => $"/movie/top_rated?language={lang}&page={page}",
-            (true, "top_rated") => $"/tv/top_rated?language={lang}&page={page}",
-            _ => null,
-        };
+            var endpoint = isSeries ? "tv" : "movie";
+            var sort = catalogId == "top_rated" ? "vote_average.desc&vote_count.gte=100" : "popularity.desc";
+            var cert = isSeries ? "" : "&certification_country=US&certification.lte=PG";
+            path = $"/discover/{endpoint}?language={lang}&page={page}&include_adult=false&with_genres=10751|16&sort_by={sort}{cert}";
+        }
+        else
+        {
+            path = (isSeries, catalogId) switch
+            {
+                (false, "trending") => $"/trending/movie/week?language={lang}&page={page}",
+                (true, "trending") => $"/trending/tv/week?language={lang}&page={page}",
+                (false, "now_playing") => $"/movie/now_playing?language={lang}&page={page}",
+                (true, "on_the_air") => $"/tv/on_the_air?language={lang}&page={page}",
+                (false, "top_rated") => $"/movie/top_rated?language={lang}&page={page}",
+                (true, "top_rated") => $"/tv/top_rated?language={lang}&page={page}",
+                _ => null,
+            };
+        }
         if (path is null) return Array.Empty<PosterItem>();
         var genres = await GenreMapAsync(isSeries, lang, key);
         using var doc = await GetJsonAsync(path, key);
@@ -179,14 +192,32 @@ public static class TmdbService
         using var doc = await GetJsonAsync($"/search/{endpoint}?query={encoded}&language={lang}&include_adult=false", key);
         var addon = VirtualAddon();
         var list = new List<PosterItem>();
+        var kids = AppPrefs.Current.KidsMode;
         if (doc.RootElement.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
         {
             foreach (var el in results.EnumerateArray())
             {
+                if (kids && !IsKidsSafe(el)) continue;
                 if (ParsePoster(el, isSeries ? "series" : "movie", genres, addon) is { } p) list.Add(p);
             }
         }
         return list;
+    }
+
+    private static bool IsKidsSafe(JsonElement el)
+    {
+        if (el.TryGetProperty("adult", out var ad) && ad.ValueKind == JsonValueKind.True) return false;
+        if (el.TryGetProperty("genre_ids", out var gids) && gids.ValueKind == JsonValueKind.Array)
+        {
+            var hasAny = false;
+            foreach (var g in gids.EnumerateArray())
+            {
+                hasAny = true;
+                if (g.TryGetInt32(out var id) && (id == 10751 || id == 16)) return true;
+            }
+            if (hasAny) return false;
+        }
+        return true;
     }
 
     public static readonly (int Id, string Name)[] DiscoverProviders =
@@ -216,8 +247,17 @@ public static class TmdbService
         var region = parts.Length > 1 ? parts[1].ToUpperInvariant() : "FR";
         var isSeries = string.Equals(type, "series", StringComparison.OrdinalIgnoreCase);
         var endpoint = isSeries ? "tv" : "movie";
+        var kids = AppPrefs.Current.KidsMode;
         var q = new List<string> { $"language={lang}", "sort_by=popularity.desc", "include_adult=false", $"page={page}" };
-        if (genreId is { } gid) q.Add($"with_genres={gid}");
+        if (kids)
+        {
+            q.Add("with_genres=10751|16");
+            if (!isSeries) q.Add("certification_country=US&certification.lte=PG");
+        }
+        else if (genreId is { } gid)
+        {
+            q.Add($"with_genres={gid}");
+        }
         if (providerId is { } pid) { q.Add($"with_watch_providers={pid}"); q.Add($"watch_region={region}"); }
         var genres = await GenreMapAsync(isSeries, lang, key);
         using var doc = await GetJsonAsync($"/discover/{endpoint}?{string.Join("&", q)}", key);
@@ -226,6 +266,67 @@ public static class TmdbService
         if (doc.RootElement.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
             foreach (var el in results.EnumerateArray())
                 if (ParsePoster(el, isSeries ? "series" : "movie", genres, addon) is { } p) list.Add(p);
+        return list;
+    }
+
+    public static async Task<IReadOnlyList<PosterItem>> FetchPersonCreditsAsync(string name)
+    {
+        var key = SecretStore.Get(KeySecret)?.Trim();
+        var clean = name.Trim();
+        if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(clean)) return Array.Empty<PosterItem>();
+        var lang = Language;
+        var encoded = Uri.EscapeDataString(clean);
+        using var searchDoc = await GetJsonAsync($"/search/person?query={encoded}&language={lang}&include_adult=false", key);
+        long personId = 0;
+        if (searchDoc.RootElement.TryGetProperty("results", out var sRes) && sRes.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var r in sRes.EnumerateArray())
+            {
+                if (r.TryGetProperty("id", out var idEl) && idEl.TryGetInt64(out var pid) && pid > 0)
+                {
+                    personId = pid;
+                    break;
+                }
+            }
+        }
+        if (personId <= 0) return Array.Empty<PosterItem>();
+
+        using var creditsDoc = await GetJsonAsync($"/person/{personId}/combined_credits?language={lang}", key);
+        var movieGenres = await GenreMapAsync(false, lang, key);
+        var tvGenres = await GenreMapAsync(true, lang, key);
+        var addon = VirtualAddon();
+        var kids = AppPrefs.Current.KidsMode;
+        var raw = new List<(double Pop, string MediaType, JsonElement El)>();
+        void Collect(string prop)
+        {
+            if (creditsDoc.RootElement.TryGetProperty(prop, out var arr) && arr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var el in arr.EnumerateArray())
+                {
+                    var mt = Str(el, "media_type");
+                    if (mt is not ("movie" or "tv")) continue;
+                    var pop = DoubleVal(el, "popularity") ?? 0;
+                    raw.Add((pop, mt, el));
+                }
+            }
+        }
+        Collect("cast");
+        Collect("crew");
+
+        var seen = new HashSet<string>();
+        var list = new List<PosterItem>();
+        foreach (var (_, mt, el) in raw.OrderByDescending(x => x.Pop))
+        {
+            if (!el.TryGetProperty("id", out var idEl) || !idEl.TryGetInt64(out var tid) || tid <= 0) continue;
+            if (!seen.Add($"{mt}:{tid}")) continue;
+            if (kids && !IsKidsSafe(el)) continue;
+            var isSeries = mt == "tv";
+            if (ParsePoster(el, isSeries ? "series" : "movie", isSeries ? tvGenres : movieGenres, addon) is { } p)
+            {
+                list.Add(p);
+                if (list.Count >= 24) break;
+            }
+        }
         return list;
     }
 

@@ -289,6 +289,10 @@
                         <MenuFlyout x:Name="SpeedMenu" Placement="Bottom" />
                     </Button.Flyout>
                 </Button>
+                <Button x:Name="PipButton" Style="{StaticResource GlassButton}" Click="OnTogglePip"
+                        ToolTipService.ToolTip="Image dans l'image (CompactOverlay)" AutomationProperties.Name="Image dans l'image">
+                    <FontIcon Glyph="&#xEE49;" Style="{StaticResource GlassIcon}" />
+                </Button>
                 <Button x:Name="AspectButton" Style="{StaticResource GlassButton}"
                         ToolTipService.ToolTip="Format d'image et zoom" AutomationProperties.Name="Format d'image">
                     <Grid>

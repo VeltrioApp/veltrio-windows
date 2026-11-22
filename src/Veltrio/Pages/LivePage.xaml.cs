@@ -176,7 +176,7 @@ public sealed partial class LivePage : Page
 
     private bool _favoritesOnly;
     private List<IGrouping<string, ChannelItem>> VisibleGroups() =>
-        _items.GroupBy(i => i.Group).Where(g => !IptvStore.IsGroupHidden(g.Key)).ToList();
+        _items.GroupBy(i => i.Group).Where(g => !IptvStore.IsGroupHidden(g.Key) && (!AppPrefs.Current.KidsMode || !AppPrefs.IsAdultIptvGroup(g.Key))).ToList();
 
     private ToggleButton Chip(string label, bool isChecked, Func<Task> action)
     {
@@ -193,7 +193,7 @@ public sealed partial class LivePage : Page
     {
         var group = GroupPicker.SelectedIndex > 0 ? VisibleGroups().ElementAtOrDefault(GroupPicker.SelectedIndex - 1)?.Key : null;
         var text = Filter.Text.Trim();
-        return _items.Where(c => _favoritesOnly ? IptvStore.IsFavorite(c.Id) : (!IptvStore.IsGroupHidden(c.Group) && (group is null || c.Group == group)))
+        return _items.Where(c => (!AppPrefs.Current.KidsMode || !AppPrefs.IsAdultIptvGroup(c.Group)) && (_favoritesOnly ? IptvStore.IsFavorite(c.Id) : (!IptvStore.IsGroupHidden(c.Group) && (group is null || c.Group == group))))
                      .Where(c => text.Length == 0 || c.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase));
     }
 

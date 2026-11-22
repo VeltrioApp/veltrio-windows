@@ -111,9 +111,9 @@ public sealed partial class DetailPage : Page
         if (d.Cast.Count > 0 || d.Director.Count > 0)
         {
             Credits.Visibility = Visibility.Visible;
-            AddFact(Credits, "RÉALISATION", d.Director.Count > 0 ? string.Join(", ", d.Director.Take(3)) : null);
-            AddFact(Credits, "SCÉNARIO", d.Writer.Count > 0 ? string.Join(", ", d.Writer.Take(3)) : null);
-            AddFact(Credits, "DISTRIBUTION", d.Cast.Count > 0 ? string.Join(", ", d.Cast.Take(6)) : null);
+            AddPersonFact(Credits, AppPrefs.Tr("RÉALISATION", "DIRECTED"), d.Director.Take(3));
+            AddFact(Credits, AppPrefs.Tr("SCÉNARIO", "WRITTEN"), d.Writer.Count > 0 ? string.Join(", ", d.Writer.Take(3)) : null);
+            AddPersonFact(Credits, AppPrefs.Tr("DISTRIBUTION", "CAST"), d.Cast.Take(8));
         }
 
         if (!string.IsNullOrWhiteSpace(d.TrailerUrl))
@@ -160,6 +160,127 @@ public sealed partial class DetailPage : Page
             }
             RecommendationsSection.Visibility = Visibility.Visible;
         }
+    }
+
+    private void AddPersonFact(StackPanel host, string label, IEnumerable<string> names)
+    {
+        var list = names.Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
+        if (list.Count == 0) return;
+        var row = new StackPanel { Spacing = 6 };
+        row.Children.Add(new TextBlock
+        {
+            Text = label,
+            FontSize = 10,
+            CharacterSpacing = 120,
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioTextTertiaryBrush"],
+        });
+        var scroller = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
+        var chips = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        foreach (var person in list)
+        {
+            var name = person;
+            var btn = new Button
+            {
+                Content = name,
+                Style = (Style)Application.Current.Resources["VeltrioGhostButton"],
+                Padding = new Thickness(10, 4, 10, 4),
+            };
+            btn.Click += async (_, _) => await ShowPersonFilmographyAsync(name);
+            chips.Children.Add(btn);
+        }
+        scroller.Content = chips;
+        row.Children.Add(scroller);
+        host.Children.Add(row);
+    }
+
+    private async Task ShowPersonFilmographyAsync(string personName)
+    {
+        var content = new StackPanel { Spacing = 12, MinWidth = 520 };
+        var status = new TextBlock
+        {
+            Text = AppPrefs.Tr("Chargement de la filmographie…", "Loading filmography…"),
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioTextSecondaryBrush"],
+        };
+        var rowPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        var scroll = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = rowPanel,
+        };
+        content.Children.Add(status);
+        content.Children.Add(scroll);
+
+        var dialog = new ContentDialog
+        {
+            Title = $"{AppPrefs.Tr("Filmographie", "Filmography")} — {personName}",
+            CloseButtonText = AppPrefs.Tr("Fermer", "Close"),
+            Content = content,
+            XamlRoot = XamlRoot,
+        };
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var items = await TmdbService.FetchPersonCreditsAsync(personName);
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (items.Count == 0)
+                    {
+                        status.Text = AppPrefs.Tr("Aucun titre trouvé sur TMDB.", "No titles found on TMDB.");
+                        return;
+                    }
+                    status.Visibility = Visibility.Collapsed;
+                    foreach (var item in items)
+                    {
+                        var target = item;
+                        var card = new StackPanel { Width = 110, Spacing = 6 };
+                        var imgBox = new Grid
+                        {
+                            Height = 165,
+                            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioSurfaceBrush"],
+                            BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioBorderBrush"],
+                            BorderThickness = new Thickness(1),
+                        };
+                        if (Uri.TryCreate(target.PosterUrl, UriKind.Absolute, out var pUri))
+                            imgBox.Children.Add(new Image { Source = new BitmapImage(pUri), Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill });
+                        card.Children.Add(imgBox);
+                        card.Children.Add(new TextBlock
+                        {
+                            Text = target.Title,
+                            FontSize = 11,
+                            MaxLines = 2,
+                            TextTrimming = TextTrimming.CharacterEllipsis,
+                            TextWrapping = TextWrapping.Wrap,
+                            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioTextPrimaryBrush"],
+                        });
+                        var btn = new Button
+                        {
+                            Style = (Style)Application.Current.Resources["VeltrioLinkButton"],
+                            Padding = new Thickness(0),
+                            Content = card,
+                        };
+                        btn.Click += (_, _) =>
+                        {
+                            dialog.Hide();
+                            Navigator.OpenTitle(target);
+                        };
+                        rowPanel.Children.Add(btn);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                DispatcherQueue.TryEnqueue(() => status.Text = ex.Message);
+            }
+        });
+
+        await dialog.ShowAsync();
     }
 
     private async void OnOpenTrailer(object sender, RoutedEventArgs e)

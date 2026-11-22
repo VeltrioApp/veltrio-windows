@@ -426,7 +426,7 @@ public sealed partial class PlayerPage : Page
 
     // -------------------- subtitles from addons --------------------
 
-    private IReadOnlyList<AddonSubtitle> _addonSubtitles = Array.Empty<AddonSubtitle>();
+    private List<AddonSubtitle> _addonSubtitles = new();
     private readonly HashSet<string> _addedSubtitles = new();
     private bool _autoSubtitleDone;
 
@@ -436,7 +436,7 @@ public sealed partial class PlayerPage : Page
     private async Task FetchAddonSubtitlesAsync(string type, string id)
     {
         SubtitleBadge.Visibility = Visibility.Visible;
-        _addonSubtitles = await SubtitleFetcher.FetchAsync(type, id);
+        _addonSubtitles = (await SubtitleFetcher.FetchAsync(type, id)).ToList();
         if (_closing) return;
         SubtitleBadge.Visibility = Visibility.Collapsed;
         BuildTrackMenus();
@@ -1040,6 +1040,24 @@ public sealed partial class PlayerPage : Page
         FullScreenIcon.Glyph = on ? "\uE73F" : "\uE740";
     }
 
+    private bool _compactOverlay;
+
+    private void OnTogglePip(object sender, RoutedEventArgs e)
+    {
+        var appWindow = Navigator.Window.AppWindow;
+        if (appWindow is null) return;
+        _compactOverlay = !_compactOverlay;
+        if (_compactOverlay)
+        {
+            Navigator.Window.SetFullScreen(false);
+            appWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.CompactOverlay);
+        }
+        else
+        {
+            appWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
+        }
+    }
+
     private void OnToggleFullScreen(object sender, RoutedEventArgs e) => ToggleFullScreen();
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
@@ -1048,6 +1066,11 @@ public sealed partial class PlayerPage : Page
     {
         if (_closing) return;
         _closing = true;
+        if (_compactOverlay)
+        {
+            _compactOverlay = false;
+            Navigator.Window.AppWindow?.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
+        }
         Navigator.Back();
     }
 
