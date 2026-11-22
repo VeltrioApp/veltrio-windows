@@ -122,7 +122,7 @@ public sealed class OnboardingPage : Page
         _nextButton.Click += async (_, _) =>
         {
             if (_step < 2) { _step++; Render(); }
-            else await FinishAsync(skipCinemeta: false);
+            else await FinishAsync();
         };
         footer.Children.Add(_nextButton);
 
