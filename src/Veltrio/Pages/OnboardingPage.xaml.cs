@@ -9,7 +9,7 @@ namespace Veltrio.Pages;
 /// <summary>First-launch 3-step onboarding flow for Windows: Stremio sign-in
 /// and full import first (or quick Cinemeta setup), optional addon URL, and
 /// ready summary. Always skippable.</summary>
-public sealed class OnboardingPage : Page
+public sealed partial class OnboardingPage : Page
 {
     private int _step;
     private string _email = "";
@@ -18,7 +18,6 @@ public sealed class OnboardingPage : Page
     private string? _addonMessage;
     private string? _addonError;
     private bool _installingAddon;
-    private bool _finishing;
 
     private readonly TextBlock _stepCounter;
     private readonly StackPanel _body;
@@ -28,6 +27,7 @@ public sealed class OnboardingPage : Page
 
     public OnboardingPage()
     {
+        InitializeComponent();
         Background = Res<Brush>("VeltrioBackgroundBrush");
 
         var root = new Grid();
