@@ -10,7 +10,7 @@ public sealed class AppPrefs
 {
     public AppTheme Theme { get; set; } = AppTheme.Dark;
     public bool OnboardingDone { get; set; }
-    /// <summary>"" = follow Windows, "fr" = Français, "en" = English.</summary>
+    /// <summary>"" = follow Windows, "fr" / "en" / "es" / "de" / "it".</summary>
     public string AppLanguage { get; set; } = "";
 
     private const string File = "app-prefs.json";
@@ -20,25 +20,45 @@ public sealed class AppPrefs
 
     public static event Action? LanguageChanged;
 
-    public static bool IsFrench => Current.AppLanguage switch
+    public static string ResolvedCode => Current.AppLanguage switch
     {
-        "fr" => true,
-        "en" => false,
-        _ => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("fr", StringComparison.OrdinalIgnoreCase),
+        "fr" or "en" or "es" or "de" or "it" => Current.AppLanguage,
+        _ => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.ToLowerInvariant() switch
+        {
+            "fr" => "fr",
+            "es" => "es",
+            "de" => "de",
+            "it" => "it",
+            _ => "en",
+        },
     };
 
-    public static string Tr(string fr, string en) => IsFrench ? fr : en;
+    public static bool IsFrench => ResolvedCode == "fr";
+
+    public static string Tr(string fr, string en, string? es = null, string? de = null, string? it = null) => ResolvedCode switch
+    {
+        "fr" => fr,
+        "es" => es ?? en,
+        "de" => de ?? en,
+        "it" => it ?? en,
+        _ => en,
+    };
+
+    public static string TmdbLanguage(string code) => code switch
+    {
+        "fr" => "fr-FR",
+        "en" => "en-US",
+        "es" => "es-ES",
+        "de" => "de-DE",
+        "it" => "it-IT",
+        _ => TmdbLanguage(ResolvedCode),
+    };
 
     public static void SetAppLanguage(string code)
     {
         Current.AppLanguage = code;
         Current.Save();
-        TmdbService.SetLanguage(code switch
-        {
-            "fr" => "fr-FR",
-            "en" => "en-US",
-            _ => IsFrench ? "fr-FR" : "en-US",
-        });
+        TmdbService.SetLanguage(TmdbLanguage(code));
         LanguageChanged?.Invoke();
     }
 

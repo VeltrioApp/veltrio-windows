@@ -43,6 +43,30 @@ public static class SubtitleFetcher
         return chunks.SelectMany(c => c).OrderBy(s => s.Language, StringComparer.CurrentCulture).ToList();
     }
 
+    /// <summary>Direct manual search against OpenSubtitles v3 (works even if no subtitle
+    /// addon is installed).</summary>
+    public static async Task<IReadOnlyList<AddonSubtitle>> SearchOpenSubtitlesAsync(string type, string id)
+    {
+        if (!id.StartsWith("tt", StringComparison.Ordinal)) return Array.Empty<AddonSubtitle>();
+        try
+        {
+            var url = $"https://opensubtitles-v3.strem.io/subtitles/{type}/{Uri.EscapeDataString(id).Replace("%3A", ":")}.json";
+            using var doc = JsonDocument.Parse(await Http.GetStringAsync(url));
+            if (!doc.RootElement.TryGetProperty("subtitles", out var list) || list.ValueKind != JsonValueKind.Array)
+                return Array.Empty<AddonSubtitle>();
+            return list.EnumerateArray()
+                .Select(s => (Url: DebridHttp.Str(s, "url"), Lang: DebridHttp.Str(s, "lang")))
+                .Where(s => !string.IsNullOrEmpty(s.Url))
+                .Select(s => new AddonSubtitle(s.Url!, s.Lang, "OpenSubtitles"))
+                .OrderBy(s => s.Language, StringComparer.CurrentCulture)
+                .ToList();
+        }
+        catch
+        {
+            return Array.Empty<AddonSubtitle>();
+        }
+    }
+
     /// <summary>The first subtitle in one of the preferred languages
     /// (ISO 639-1 or -2, any synonym, then prefix match).</summary>
     public static AddonSubtitle? Pick(IEnumerable<AddonSubtitle> subtitles, IEnumerable<string> preferred)

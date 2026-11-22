@@ -173,7 +173,7 @@ public sealed partial class SettingsPage : Page
     private void BuildLanguageChips()
     {
         LanguageChips.Children.Clear();
-        foreach (var (code, label) in new[] { ("", AppPrefs.Tr("AUTOMATIQUE", "AUTOMATIC")), ("fr", "FRANÇAIS"), ("en", "ENGLISH") })
+        foreach (var (code, label) in new[] { ("", AppPrefs.Tr("AUTO", "AUTO")), ("fr", "FRANÇAIS"), ("en", "ENGLISH"), ("es", "ESPAÑOL"), ("de", "DEUTSCH"), ("it", "ITALIANO") })
         {
             var chip = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
             {

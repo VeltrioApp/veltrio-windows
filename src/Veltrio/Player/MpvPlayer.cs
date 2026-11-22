@@ -200,6 +200,11 @@ public sealed unsafe class MpvPlayer : IDisposable
     public void SelectSubtitle(long id) => LibMpv.SetPropertyString(Handle, "sid", id <= 0 ? "no" : id.ToString());
 
     public void SetSubDelay(double seconds) => LibMpv.SetPropertyString(Handle, "sub-delay", Num(Math.Round(seconds, 2)));
+    public void SetSubtitleAppearance(double scale, string color)
+    {
+        LibMpv.SetPropertyString(Handle, "sub-scale", Num(scale));
+        LibMpv.SetPropertyString(Handle, "sub-color", color);
+    }
     public void SetAudioDelay(double seconds) => LibMpv.SetPropertyString(Handle, "audio-delay", Num(Math.Round(seconds, 2)));
 
     /// <summary>Loads a subtitle file or URL and selects it.</summary>

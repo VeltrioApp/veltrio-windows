@@ -103,10 +103,10 @@ public sealed partial class MainWindow : Window
 
     private static string SectionLabel(int index) => index switch
     {
-        0 => Services.AppPrefs.Tr("ACCUEIL", "HOME"),
-        1 => "COLLECTION",
-        2 => Services.AppPrefs.Tr("DIRECT", "LIVE"),
-        3 => "SOURCES",
+        0 => Services.AppPrefs.Tr("ACCUEIL", "HOME", "INICIO", "STARTSEITE", "HOME"),
+        1 => Services.AppPrefs.Tr("COLLECTION", "COLLECTION", "COLECCIÓN", "SAMMLUNG", "COLLEZIONE"),
+        2 => Services.AppPrefs.Tr("DIRECT", "LIVE", "EN DIRECTO", "LIVE-TV", "DIRETTA"),
+        3 => Services.AppPrefs.Tr("SOURCES", "SOURCES", "FUENTES", "QUELLEN", "SORGENTI"),
         _ => "",
     };
 

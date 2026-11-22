@@ -462,6 +462,16 @@ public sealed partial class PlayerPage : Page
         if (_addedSubtitles.Add(subtitle.Url)) _player.AddSubtitle(subtitle.Url, $"{subtitle.Language} ({subtitle.AddonName})", subtitle.Lang);
     }
 
+    private async Task SearchManualSubtitlesAsync(string type, string id)
+    {
+        var found = await SubtitleFetcher.SearchOpenSubtitlesAsync(type, id);
+        if (found.Count == 0) return;
+        var existing = new HashSet<string>(_addonSubtitles.Select(s => s.Url));
+        foreach (var s in found)
+            if (existing.Add(s.Url)) _addonSubtitles.Add(s);
+        DispatcherQueue.TryEnqueue(BuildTrackMenus);
+    }
+
     private async Task LoadLocalSubtitleAsync()
     {
         var picker = new Windows.Storage.Pickers.FileOpenPicker();
@@ -885,6 +895,34 @@ public sealed partial class PlayerPage : Page
             foreach (var s in online) SubtitleMenu.Items.Add(Item($"{s.Language}   {s.AddonName}", () => AddAddonSubtitle(s)));
         }
         SubtitleMenu.Items.Add(new MenuFlyoutSeparator());
+        if (_request.ContentType is "movie" or "series" && (_request.VideoId ?? _request.ContentId) is { } subId && subId.StartsWith("tt", StringComparison.Ordinal))
+        {
+            SubtitleMenu.Items.Add(Item(AppPrefs.Tr("Rechercher OpenSubtitles", "Search OpenSubtitles", "Buscar en OpenSubtitles", "OpenSubtitles durchsuchen", "Cerca su OpenSubtitles"), () => _ = SearchManualSubtitlesAsync(_request.ContentType, subId)));
+        }
+        var sizeSub = new MenuFlyoutSubItem { Text = AppPrefs.Tr("Taille des sous-titres", "Subtitle size", "Tamaño de subtítulos", "Untertitelgröße", "Dimensione sottotitoli") };
+        foreach (var (code, name) in PlayerPrefs.SubtitleScales)
+        {
+            var sc = double.Parse(code, System.Globalization.CultureInfo.InvariantCulture);
+            sizeSub.Items.Add(TrackItem(name, Math.Abs(PlayerPrefs.Current.SubtitleScale - sc) < 0.01, "sub-scale", () =>
+            {
+                PlayerPrefs.Current.SubtitleScale = sc;
+                PlayerPrefs.Current.Save();
+                p.SetSubtitleAppearance(sc, PlayerPrefs.Current.SubtitleColor);
+            }));
+        }
+        SubtitleMenu.Items.Add(sizeSub);
+        var colorSub = new MenuFlyoutSubItem { Text = AppPrefs.Tr("Couleur des sous-titres", "Subtitle color", "Color de subtítulos", "Untertitelfarbe", "Colore sottotitoli") };
+        foreach (var (hex, name) in PlayerPrefs.SubtitleColors)
+        {
+            var cHex = hex;
+            colorSub.Items.Add(TrackItem(name, PlayerPrefs.Current.SubtitleColor == cHex, "sub-color", () =>
+            {
+                PlayerPrefs.Current.SubtitleColor = cHex;
+                PlayerPrefs.Current.Save();
+                p.SetSubtitleAppearance(PlayerPrefs.Current.SubtitleScale, cHex);
+            }));
+        }
+        SubtitleMenu.Items.Add(colorSub);
         SubtitleMenu.Items.Add(Item("Charger un fichier…", () => _ = LoadLocalSubtitleAsync()));
         if (p.SubDelay != 0)
         {
