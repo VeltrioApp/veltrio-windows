@@ -510,7 +510,7 @@ public sealed partial class DetailPage : Page
             Url = stream.LocalPath,
             Stream = stream,
             ContentType = _request.Type,
-            ContentId = _request.Id,
+            ContentId = _details?.Id ?? _request.Id,
             VideoId = episode?.Id,
             Season = episode?.Season,
             Episode = episode?.Episode,
