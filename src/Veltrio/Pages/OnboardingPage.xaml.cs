@@ -18,6 +18,7 @@ public sealed partial class OnboardingPage : Page
     private string? _addonMessage;
     private string? _addonError;
     private bool _installingAddon;
+    private bool _finishing;
 
     private readonly TextBlock _stepCounter;
     private readonly StackPanel _body;
