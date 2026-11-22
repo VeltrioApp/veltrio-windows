@@ -130,6 +130,8 @@ public sealed partial class SettingsPage : Page
         var prefs = Player.PlayerPrefs.Current;
         Fill(AudioLang, Player.PlayerPrefs.Languages.Select(l => (l.Code, l.Name)), prefs.AudioLang);
         Fill(SubtitleLang, Player.PlayerPrefs.Languages.Select(l => (l.Code, l.Code == "" ? "Aucune préférence" : l.Name)), prefs.SubtitleLang);
+        Fill(SubtitleScale, Player.PlayerPrefs.SubtitleScales.Select(s => (s.Code, s.Name)), prefs.SubtitleScale.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Fill(SubtitleColor, Player.PlayerPrefs.SubtitleColors.Select(c => (c.Code, c.Name)), prefs.SubtitleColor);
         Fill(Hwdec, Decoders, prefs.Hwdec);
         Fill(CacheSize, CacheSizes.Select(n => (n.ToString(), $"{n} Mio")), prefs.CacheMiB.ToString());
         AutoNext.IsOn = prefs.AutoNextEpisode;
@@ -156,6 +158,8 @@ public sealed partial class SettingsPage : Page
         var prefs = Player.PlayerPrefs.Current;
         prefs.AudioLang = Selected(AudioLang);
         prefs.SubtitleLang = Selected(SubtitleLang);
+        prefs.SubtitleScale = double.TryParse(Selected(SubtitleScale), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sc) ? sc : 1.0;
+        prefs.SubtitleColor = Selected(SubtitleColor) is { Length: > 0 } col ? col : "#FFFFFFFF";
         prefs.Hwdec = Selected(Hwdec) is { Length: > 0 } hw ? hw : "auto-safe";
         prefs.CacheMiB = int.TryParse(Selected(CacheSize), out var mib) ? mib : 150;
         prefs.AutoNextEpisode = AutoNext.IsOn;

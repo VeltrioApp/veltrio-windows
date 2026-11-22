@@ -148,12 +148,28 @@
                         </Button>
                     </Grid>
 
+                    <Button x:Name="TrailerButton" Style="{StaticResource VeltrioGhostButton}" HorizontalAlignment="Left"
+                            Visibility="Collapsed" Click="OnOpenTrailer">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE714;" FontSize="12" />
+                            <TextBlock x:Name="TrailerLabel" Text="BANDE-ANNONCE" />
+                        </StackPanel>
+                    </Button>
+
                     <TextBlock x:Name="ErrorText" Foreground="{StaticResource VeltrioDangerBrush}" TextWrapping="Wrap"
                                Visibility="Collapsed" />
 
                     <StackPanel x:Name="Credits" Spacing="10" Visibility="Collapsed">
                         <Border Style="{StaticResource VeltrioRule}" Margin="0,0,0,8" />
                         <TextBlock Text="GÉNÉRIQUE" Style="{StaticResource VeltrioEyebrow}" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="RecommendationsSection" Spacing="12" Visibility="Collapsed">
+                        <Border Style="{StaticResource VeltrioRule}" Margin="0,0,0,8" />
+                        <TextBlock x:Name="RecommendationsTitle" Text="TITRES SIMILAIRES" Style="{StaticResource VeltrioEyebrow}" />
+                        <ScrollViewer HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled">
+                            <StackPanel x:Name="RecommendationsRow" Orientation="Horizontal" Spacing="12" />
+                        </ScrollViewer>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>

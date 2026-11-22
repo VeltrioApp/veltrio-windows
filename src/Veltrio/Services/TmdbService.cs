@@ -200,7 +200,7 @@ public static class TmdbService
             ?? throw new InvalidOperationException(AppPrefs.Tr("Titre introuvable sur TMDB.", "Title not found on TMDB."));
 
         var mediaType = isSeries ? "tv" : "movie";
-        using var doc = await GetJsonAsync($"/{mediaType}/{tmdbId}?language={lang}&append_to_response=external_ids,credits", key);
+        using var doc = await GetJsonAsync($"/{mediaType}/{tmdbId}?language={lang}&append_to_response=external_ids,credits,videos,recommendations", key);
         var root = doc.RootElement;
 
         string? imdbId = null;
@@ -295,6 +295,17 @@ public static class TmdbService
             foreach (var c in chunks) episodes.AddRange(c);
         }
 
+        var langShort = lang.Split('-')[0];
+        var trailerUrl = PickTrailer(root, langShort);
+        var addon = VirtualAddon();
+        var genresMap = await GenreMapAsync(isSeries, lang, key);
+        var recs = new List<PosterItem>();
+        if (root.TryGetProperty("recommendations", out var recObj) && recObj.TryGetProperty("results", out var recArr) && recArr.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var el in recArr.EnumerateArray().Take(12))
+                if (ParsePoster(el, isSeries ? "series" : "movie", genresMap, addon) is { } p) recs.Add(p);
+        }
+
         return new TitleDetails
         {
             Id = canonicalId,
@@ -311,8 +322,25 @@ public static class TmdbService
             Director = directors,
             Writer = writers,
             Episodes = episodes,
-            Addon = VirtualAddon(),
+            Addon = addon,
+            TrailerUrl = trailerUrl,
+            Recommendations = recs,
         };
+    }
+
+    private static string? PickTrailer(JsonElement root, string langShort)
+    {
+        if (!root.TryGetProperty("videos", out var vObj) || !vObj.TryGetProperty("results", out var arr) || arr.ValueKind != JsonValueKind.Array)
+            return null;
+        var yt = arr.EnumerateArray()
+            .Where(v => string.Equals(Str(v, "site"), "YouTube", StringComparison.OrdinalIgnoreCase) && Str(v, "key") is not null)
+            .ToList();
+        if (yt.Count == 0) return null;
+        var chosen = yt.FirstOrDefault(v => Str(v, "type") == "Trailer" && Str(v, "iso_639_1") == langShort);
+        if (chosen.ValueKind == JsonValueKind.Undefined) chosen = yt.FirstOrDefault(v => Str(v, "type") == "Trailer");
+        if (chosen.ValueKind == JsonValueKind.Undefined) chosen = yt.FirstOrDefault(v => Str(v, "type") == "Teaser");
+        if (chosen.ValueKind == JsonValueKind.Undefined) chosen = yt[0];
+        return Str(chosen, "key") is { } k ? $"https://www.youtube.com/watch?v={k}" : null;
     }
 
     private static async Task<string?> ResolveTmdbIdAsync(string id, bool isSeries, string lang, string key)

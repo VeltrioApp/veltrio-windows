@@ -146,6 +146,8 @@ public sealed unsafe class MpvPlayer : IDisposable
             Set("alang", string.Join(",", MediaTrack.Synonyms(prefs.AudioLang).Concat(prefs.AudioLang == "eng" ? Array.Empty<string>() : new[] { "en", "eng" })));
         if (prefs.SubtitleLang.Length > 0) Set("slang", string.Join(",", MediaTrack.Synonyms(prefs.SubtitleLang)));
         Set("sub-font-size", "46");
+        Set("sub-scale", prefs.SubtitleScale.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Set("sub-color", prefs.SubtitleColor);
 
         var error = LibMpv.Initialize(Handle);
         if (error < 0) throw new InvalidOperationException($"mpv : {LibMpv.Error(error)}");

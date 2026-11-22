@@ -80,6 +80,20 @@ public sealed class PlayerPrefs
     public string Hwdec { get; set; } = "auto-safe";
     /// <summary>Read-ahead buffer for network streams, in MiB.</summary>
     public int CacheMiB { get; set; } = 150;
+    /// <summary>Subtitle size multiplier (mpv sub-scale).</summary>
+    public double SubtitleScale { get; set; } = 1.0;
+    /// <summary>Subtitle text color (mpv sub-color).</summary>
+    public string SubtitleColor { get; set; } = "#FFFFFFFF";
+
+    public static readonly (string Code, string Name)[] SubtitleScales =
+    {
+        ("0.75", "Petit"), ("1", "Normal"), ("1.25", "Grand"), ("1.5", "Très grand"),
+    };
+
+    public static readonly (string Code, string Name)[] SubtitleColors =
+    {
+        ("#FFFFFFFF", "Blanc"), ("#FFFFE066", "Jaune"), ("#FFD0D0D0", "Gris clair"),
+    };
 
     /// <summary>Languages offered in Settings, ISO 639-2 as mpv and the servers report them.</summary>
     public static readonly (string Code, string Name)[] Languages =

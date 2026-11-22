@@ -127,6 +127,8 @@ public sealed class TitleDetails
     public IReadOnlyList<string> Writer { get; init; } = Array.Empty<string>();
     public IReadOnlyList<EpisodeItem> Episodes { get; init; } = Array.Empty<EpisodeItem>();
     public AddonInfo Addon { get; init; } = null!;
+    public string? TrailerUrl { get; init; }
+    public IReadOnlyList<PosterItem> Recommendations { get; init; } = Array.Empty<PosterItem>();
 
     internal static TitleDetails From(Meta m, AddonInfo addon) => new()
     {

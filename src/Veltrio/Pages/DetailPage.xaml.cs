@@ -115,6 +115,57 @@ public sealed partial class DetailPage : Page
             AddFact(Credits, "SCÉNARIO", d.Writer.Count > 0 ? string.Join(", ", d.Writer.Take(3)) : null);
             AddFact(Credits, "DISTRIBUTION", d.Cast.Count > 0 ? string.Join(", ", d.Cast.Take(6)) : null);
         }
+
+        if (!string.IsNullOrWhiteSpace(d.TrailerUrl))
+        {
+            TrailerLabel.Text = AppPrefs.Tr("BANDE-ANNONCE", "TRAILER");
+            TrailerButton.Visibility = Visibility.Visible;
+        }
+
+        if (d.Recommendations.Count > 0)
+        {
+            RecommendationsTitle.Text = AppPrefs.Tr("TITRES SIMILAIRES", "MORE LIKE THIS");
+            RecommendationsRow.Children.Clear();
+            foreach (var rec in d.Recommendations)
+            {
+                var card = new StackPanel { Width = 110, Spacing = 6 };
+                var imgBox = new Grid
+                {
+                    Height = 165,
+                    Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioSurfaceBrush"],
+                    BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioBorderBrush"],
+                    BorderThickness = new Thickness(1),
+                };
+                if (Uri.TryCreate(rec.PosterUrl, UriKind.Absolute, out var pUri))
+                    imgBox.Children.Add(new Image { Source = new BitmapImage(pUri), Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill });
+                card.Children.Add(imgBox);
+                card.Children.Add(new TextBlock
+                {
+                    Text = rec.Title,
+                    FontSize = 11,
+                    MaxLines = 2,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioTextPrimaryBrush"],
+                });
+                var btn = new Button
+                {
+                    Style = (Style)Application.Current.Resources["VeltrioLinkButton"],
+                    Padding = new Thickness(0),
+                    Content = card,
+                };
+                var target = rec;
+                btn.Click += (_, _) => Navigator.OpenTitle(target);
+                RecommendationsRow.Children.Add(btn);
+            }
+            RecommendationsSection.Visibility = Visibility.Visible;
+        }
+    }
+
+    private async void OnOpenTrailer(object sender, RoutedEventArgs e)
+    {
+        if (Uri.TryCreate(_details?.TrailerUrl, UriKind.Absolute, out var uri))
+            await Windows.System.Launcher.LaunchUriAsync(uri);
     }
 
     private async Task LocalizeDetailsAsync(string id, string type)

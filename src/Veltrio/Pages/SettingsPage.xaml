@@ -67,12 +67,16 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <ComboBox x:Name="AudioLang" Header="Langue audio préférée" HorizontalAlignment="Stretch" SelectionChanged="OnPlaybackChanged" />
                     <ComboBox x:Name="SubtitleLang" Grid.Column="1" Header="Sous-titres préférés" HorizontalAlignment="Stretch"
                               SelectionChanged="OnPlaybackChanged" />
-                    <ComboBox x:Name="Hwdec" Grid.Row="1" Header="Décodage vidéo" HorizontalAlignment="Stretch" SelectionChanged="OnPlaybackChanged" />
-                    <ComboBox x:Name="CacheSize" Grid.Row="1" Grid.Column="1" Header="Mémoire tampon (flux réseau)" HorizontalAlignment="Stretch"
+                    <ComboBox x:Name="SubtitleScale" Grid.Row="1" Header="Taille des sous-titres" HorizontalAlignment="Stretch" SelectionChanged="OnPlaybackChanged" />
+                    <ComboBox x:Name="SubtitleColor" Grid.Row="1" Grid.Column="1" Header="Couleur des sous-titres" HorizontalAlignment="Stretch"
+                              SelectionChanged="OnPlaybackChanged" />
+                    <ComboBox x:Name="Hwdec" Grid.Row="2" Header="Décodage vidéo" HorizontalAlignment="Stretch" SelectionChanged="OnPlaybackChanged" />
+                    <ComboBox x:Name="CacheSize" Grid.Row="2" Grid.Column="1" Header="Mémoire tampon (flux réseau)" HorizontalAlignment="Stretch"
                               SelectionChanged="OnPlaybackChanged" />
                 </Grid>
                 <ToggleSwitch x:Name="AutoNext" Header="Enchaîner l'épisode suivant (compte à rebours de 10 s en fin d'épisode)"
