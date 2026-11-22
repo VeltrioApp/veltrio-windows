@@ -229,12 +229,15 @@ public sealed unsafe class VideoSurface : IDisposable
         _width = w;
         _height = h;
         DestroyTarget();
-        _context!.ClearState();
-        _context.Flush();
+        // NEVER call _context.ClearState() here: ANGLE shares this D3D11 ImmediateContext
+        // and caches its pipeline state in StateManager11; ClearState() wipes D3D11 shaders
+        // and render targets behind ANGLE's back, causing permanent black frames after resize!
+        _context!.Flush();
         _swapChain!.ResizeBuffers(2, (uint)_width, (uint)_height, Format.B8G8R8A8_UNorm, SwapChainFlags.None).CheckError();
         // ResizeBuffers resets the DXGI swapchain transform on some drivers; always re-apply scale after.
         ApplyScale();
         CreateTarget();
+        PlayerLog.Write($"[video] resized to {_width}x{_height}");
         RenderFrame(); // don't leave a stretched old frame
     }
 
