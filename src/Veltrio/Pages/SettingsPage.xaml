@@ -87,6 +87,9 @@
                     <TextBlock Text="Apparence" Style="{StaticResource VeltrioSectionTitle}" />
                 </StackPanel>
                 <TextBlock Style="{StaticResource VeltrioBody}"
+                           Text="Langue de l'application (synchronise aussi les catalogues TMDB)." />
+                <StackPanel x:Name="LanguageChips" Orientation="Horizontal" Spacing="8" />
+                <TextBlock Style="{StaticResource VeltrioBody}"
                            Text="Sombre : le noir de salle de cinéma, l'expérience de référence. Clair : un papier chaud pour la journée. Le thème change au prochain lancement." />
                 <StackPanel x:Name="ThemeChips" Orientation="Horizontal" Spacing="8" />
                 <Button x:Name="RestartButton" Style="{StaticResource VeltrioGhostButton}" HorizontalAlignment="Left" Click="OnRestart"

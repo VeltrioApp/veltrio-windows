@@ -11,10 +11,7 @@ namespace Veltrio.Pages;
 /// ready summary. Always skippable.</summary>
 public sealed class OnboardingPage : Page
 {
-    private const string CinemetaUrl = "https://v3-cinemeta.strem.io/manifest.json";
-
     private int _step;
-    private bool _installCinemeta = true;
     private string _email = "";
     private string _password = "";
     private string _customAddonUrl = "";
@@ -276,19 +273,28 @@ public sealed class OnboardingPage : Page
 
         _body.Children.Add(WrapCard(stremioCard, accentBorder: true));
 
-        // Secondary card: Start fresh with Cinemeta
-        var freshCard = Card(accentBorder: false);
-        freshCard.Children.Add(new TextBlock { Text = "OU DÉMARRER À ZÉRO", Style = Res<Style>("VeltrioEyebrow") });
-        var toggle = new ToggleSwitch
+        // Language selector card
+        var langCard = Card(accentBorder: false);
+        langCard.Children.Add(new TextBlock { Text = AppPrefs.Tr("LANGUE DE L'APPLICATION", "APP LANGUAGE"), Style = Res<Style>("VeltrioEyebrow") });
+        var langRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        foreach (var (code, label) in new[] { ("fr", "FRANÇAIS"), ("en", "ENGLISH") })
         {
-            Header = "Installer le catalogue Cinemeta",
-            OnContent = "Activé — remplit immédiatement l'Accueil avec les films et séries populaires",
-            OffContent = "Désactivé",
-            IsOn = _installCinemeta,
-        };
-        toggle.Toggled += (_, _) => _installCinemeta = toggle.IsOn;
-        freshCard.Children.Add(toggle);
-        _body.Children.Add(WrapCard(freshCard, accentBorder: false));
+            var selected = AppPrefs.Current.AppLanguage == code || (string.IsNullOrEmpty(AppPrefs.Current.AppLanguage) && (code == "fr") == AppPrefs.IsFrench);
+            var chip = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
+            {
+                Content = label,
+                IsChecked = selected,
+                Style = Res<Style>("VeltrioChip"),
+            };
+            chip.Click += (_, _) =>
+            {
+                AppPrefs.SetAppLanguage(code);
+                Render();
+            };
+            langRow.Children.Add(chip);
+        }
+        langCard.Children.Add(langRow);
+        _body.Children.Add(WrapCard(langCard, accentBorder: false));
     }
 
     private void RenderSources()
@@ -443,28 +449,22 @@ public sealed class OnboardingPage : Page
         });
 
         var summary = Card(accentBorder: false);
-        var hasCinemeta = _installCinemeta || CoreService.IsInstalled(CinemetaUrl);
-        var addonCount = CoreService.Addons.Count + (_installCinemeta && !CoreService.IsInstalled(CinemetaUrl) ? 1 : 0);
-        summary.Children.Add(SummaryRow("Catalogue", hasCinemeta ? "Cinemeta activé" : "Aucun"));
+        summary.Children.Add(SummaryRow(AppPrefs.Tr("Catalogue", "Catalog"), TmdbService.IsConnected ? AppPrefs.Tr("TMDB activé", "TMDB enabled") : AppPrefs.Tr("Aucun", "None")));
         summary.Children.Add(new Border { Style = Res<Style>("VeltrioRule") });
-        summary.Children.Add(SummaryRow("Addons installés", addonCount.ToString()));
+        summary.Children.Add(SummaryRow(AppPrefs.Tr("Addons installés", "Installed addons"), CoreService.Addons.Count.ToString()));
         summary.Children.Add(new Border { Style = Res<Style>("VeltrioRule") });
-        summary.Children.Add(SummaryRow("Compte Stremio", StremioAccountService.IsConnected ? (StremioAccountService.Email ?? "Connecté") : "Non connecté"));
+        summary.Children.Add(SummaryRow(AppPrefs.Tr("Compte Stremio", "Stremio account"), StremioAccountService.IsConnected ? (StremioAccountService.Email ?? AppPrefs.Tr("Connecté", "Connected")) : AppPrefs.Tr("Non connecté", "Not signed in")));
         _body.Children.Add(WrapCard(summary, accentBorder: false));
     }
 
-    private void Finish(bool skipCinemeta) => _ = FinishAsync(skipCinemeta);
+    private void Finish(bool skipCinemeta) => _ = FinishAsync();
 
-    private async Task FinishAsync(bool skipCinemeta)
+    private Task FinishAsync()
     {
-        _finishing = true;
-        Render();
-        if (!skipCinemeta && _installCinemeta && !CoreService.IsInstalled(CinemetaUrl))
-            await CoreService.InstallAddonAsync(CinemetaUrl);
         AppPrefs.Current.OnboardingDone = true;
         AppPrefs.Current.Save();
-        _finishing = false;
         Navigator.Window?.ShowSection(0);
+        return Task.CompletedTask;
     }
 
     private static StackPanel Card(bool accentBorder) => new() { Spacing = 14 };

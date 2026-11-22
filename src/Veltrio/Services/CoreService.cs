@@ -16,8 +16,6 @@ public static class CoreService
 
     public static readonly IReadOnlyList<(string Name, string Url, string Blurb)> SuggestedAddons = new[]
     {
-        ("Cinemeta", "https://v3-cinemeta.strem.io/manifest.json",
-            "Les catalogues officiels de films et de séries (via TMDB)."),
         ("OpenSubtitles v3", "https://opensubtitles-v3.strem.io/manifest.json",
             "Des sous-titres dans plus de 50 langues."),
         ("WatchHub", "https://watchhub.strem.io/manifest.json",
@@ -110,11 +108,18 @@ public static class CoreService
 
     private static readonly Dictionary<string, Task<IReadOnlyList<PosterItem>>> _catalogCache = new();
 
+    public static void ClearCatalogCache() => _catalogCache.Clear();
+
+    private static bool IsCinemeta(AddonInfo a) =>
+        a.TransportUrl.Contains("cinemeta", StringComparison.OrdinalIgnoreCase)
+        || a.Id.Contains("cinemeta", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>A catalog's first page, cached for the session so going
     /// back to Home doesn't refetch every row.</summary>
     public static Task<IReadOnlyList<PosterItem>> LoadCatalogAsync(AddonInfo addon, CatalogInfo catalog)
     {
-        var key = $"{addon.TransportUrl}|{catalog.Type}|{catalog.Id}";
+        var langTag = addon.Id == TmdbService.AddonId ? $"|{TmdbService.Language}" : "";
+        var key = $"{addon.TransportUrl}|{catalog.Type}|{catalog.Id}{langTag}";
         if (_catalogCache.TryGetValue(key, out var cached) && !cached.IsFaulted) return cached;
         var task = WithTimeout(FetchCatalogAsync(addon, catalog, Array.Empty<string>()), 20);
         _catalogCache[key] = task;
@@ -126,6 +131,8 @@ public static class CoreService
     {
         try
         {
+            if (addon.Id == TmdbService.AddonId)
+                return await WithTimeout(TmdbService.FetchCatalogAsync(catalog.Type, catalog.Id, skip), 15);
             return await WithTimeout(FetchCatalogAsync(addon, catalog, skip > 0 ? new[] { $"skip={skip}" } : Array.Empty<string>()), 15);
         }
         catch
@@ -136,29 +143,63 @@ public static class CoreService
 
     private static async Task<IReadOnlyList<PosterItem>> FetchCatalogAsync(AddonInfo addon, CatalogInfo catalog, string[] extras)
     {
+        if (addon.Id == TmdbService.AddonId)
+        {
+            var search = extras.FirstOrDefault(e => e.StartsWith("search=", StringComparison.Ordinal))?[7..];
+            return search is not null
+                ? await TmdbService.SearchAsync(search, catalog.Type)
+                : await TmdbService.FetchCatalogAsync(catalog.Type, catalog.Id, 0);
+        }
         var metas = await Client.FetchCatalog(addon.TransportUrl, catalog.Type, catalog.Id, extras);
         return metas.Select(m => PosterItem.From(m, addon)).ToList();
     }
 
-    /// <summary>Every browsable catalog of the enabled addons, in order.</summary>
-    public static IEnumerable<(AddonInfo Addon, CatalogInfo Catalog)> HomeCatalogs() =>
-        EnabledAddons.SelectMany(a => a.Catalogs.Where(c => c.IsBrowsable).Select(c => (a, c)));
+    /// <summary>Every browsable catalog: native TMDB first when connected,
+    /// then any non-Cinemeta enabled Stremio addons.</summary>
+    public static IEnumerable<(AddonInfo Addon, CatalogInfo Catalog)> HomeCatalogs()
+    {
+        var tmdb = TmdbService.IsConnected
+            ? TmdbService.VirtualAddon().Catalogs.Where(c => c.IsBrowsable).Select(c => (TmdbService.VirtualAddon(), c))
+            : Enumerable.Empty<(AddonInfo, CatalogInfo)>();
+        var others = EnabledAddons
+            .Where(a => !IsCinemeta(a))
+            .SelectMany(a => a.Catalogs.Where(c => c.IsBrowsable).Select(c => (a, c)));
+        return tmdb.Concat(others);
+    }
 
     // -------------------- metadata --------------------
 
-    /// <summary>The addon to open a title's page with: the preferred one
-    /// when still installed, else the first metadata addon for the type.</summary>
-    public static AddonInfo? MetaAddon(string type, string? preferredId = null) =>
-        _addons.FirstOrDefault(a => a.Id == preferredId)
-        ?? _addons.FirstOrDefault(a => a.Serves("meta", type));
+    /// <summary>The addon to open a title's page with: TMDB when connected,
+    /// else the preferred addon or first metadata addon for the type.</summary>
+    public static AddonInfo? MetaAddon(string type, string? preferredId = null)
+    {
+        if (preferredId == TmdbService.AddonId && TmdbService.IsConnected) return TmdbService.VirtualAddon();
+        if (TmdbService.IsConnected && (type == "movie" || type == "series")) return TmdbService.VirtualAddon();
+        return _addons.FirstOrDefault(a => a.Id == preferredId)
+            ?? _addons.FirstOrDefault(a => a.Serves("meta", type));
+    }
 
-    /// <summary>Tries the preferred addon, then every other enabled addon
-    /// serving metadata for the type; the first answer wins.</summary>
+    /// <summary>Uses TMDB directly when connected (resolving IMDb IDs for stream addons),
+    /// falling back to installed Stremio metadata addons otherwise.</summary>
     public static async Task<TitleDetails> FetchDetailsAsync(AddonInfo preferred, string type, string id)
     {
-        var ordered = new List<AddonInfo> { preferred };
-        ordered.AddRange(EnabledAddons.Where(a => a.Id != preferred.Id && a.Serves("meta", type)));
         Exception? last = null;
+        if (TmdbService.IsConnected && (preferred.Id == TmdbService.AddonId || id.StartsWith("tmdb:", StringComparison.Ordinal) || id.StartsWith("tt", StringComparison.Ordinal)))
+        {
+            try
+            {
+                return await WithTimeout(TmdbService.FetchDetailsAsync(type, id), 20);
+            }
+            catch (Exception ex)
+            {
+                last = ex;
+                if (preferred.Id == TmdbService.AddonId || id.StartsWith("tmdb:", StringComparison.Ordinal))
+                    throw new InvalidOperationException(Humanize(ex));
+            }
+        }
+        var ordered = new List<AddonInfo>();
+        if (preferred.Id != TmdbService.AddonId) ordered.Add(preferred);
+        ordered.AddRange(EnabledAddons.Where(a => a.Id != preferred.Id && a.Id != TmdbService.AddonId && a.Serves("meta", type)));
         foreach (var addon in ordered)
         {
             try
@@ -171,7 +212,7 @@ public static class CoreService
                 last = ex;
             }
         }
-        throw new InvalidOperationException(last is null ? "Aucun addon n'a pu fournir la fiche." : Humanize(last));
+        throw new InvalidOperationException(last is null ? AppPrefs.Tr("Aucun addon n'a pu fournir la fiche.", "No addon could provide details.") : Humanize(last));
     }
 
     // -------------------- streams --------------------
@@ -279,9 +320,13 @@ public static class CoreService
     /// in addon order. 10 s per catalog.</summary>
     public static async Task<IReadOnlyList<CatalogRow>> SearchAsync(string query)
     {
-        var targets = EnabledAddons
-            .SelectMany(a => a.Catalogs.Where(c => c.IsSearchable).Select(c => (a, c)))
-            .ToList();
+        var tmdbTargets = TmdbService.IsConnected
+            ? TmdbService.VirtualAddon().Catalogs.Where(c => c.IsSearchable).Select(c => (a: TmdbService.VirtualAddon(), c))
+            : Enumerable.Empty<(AddonInfo a, CatalogInfo c)>();
+        var addonTargets = EnabledAddons
+            .Where(a => !IsCinemeta(a))
+            .SelectMany(a => a.Catalogs.Where(c => c.IsSearchable).Select(c => (a, c)));
+        var targets = tmdbTargets.Concat(addonTargets).ToList();
         var rows = await Task.WhenAll(targets.Select(async t =>
         {
             try

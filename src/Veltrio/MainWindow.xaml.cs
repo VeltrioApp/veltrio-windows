@@ -51,7 +51,12 @@ public sealed partial class MainWindow : Window
         Content.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
 
         Services.Updater.Changed += OnUpdaterChanged;
-        Closed += (_, _) => Services.Updater.Changed -= OnUpdaterChanged;
+        Services.AppPrefs.LanguageChanged += OnLanguageChanged;
+        Closed += (_, _) =>
+        {
+            Services.Updater.Changed -= OnUpdaterChanged;
+            Services.AppPrefs.LanguageChanged -= OnLanguageChanged;
+        };
         RefreshUpdateBanner();
 
         if (!Services.AppPrefs.Current.OnboardingDone)
@@ -96,13 +101,28 @@ public sealed partial class MainWindow : Window
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
 
+    private static string SectionLabel(int index) => index switch
+    {
+        0 => Services.AppPrefs.Tr("ACCUEIL", "HOME"),
+        1 => "COLLECTION",
+        2 => Services.AppPrefs.Tr("DIRECT", "LIVE"),
+        3 => "SOURCES",
+        _ => "",
+    };
+
+    private void OnLanguageChanged() => DispatcherQueue.TryEnqueue(() =>
+    {
+        for (var i = 0; i < _tabs.Count; i++)
+            _tabs[i].Label.Text = SectionLabel(i);
+    });
+
     private void BuildTabs()
     {
         for (var i = 0; i < Sections.Length; i++)
         {
             var index = i;
             var number = new TextBlock { Text = $"0{i + 1}", Style = (Style)Application.Current.Resources["VeltrioNumeral"], FontSize = 10 };
-            var label = new TextBlock { Text = Sections[i].Label, FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, CharacterSpacing = 220 };
+            var label = new TextBlock { Text = SectionLabel(i), FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, CharacterSpacing = 220 };
             var underline = new Border
             {
                 Height = 1,

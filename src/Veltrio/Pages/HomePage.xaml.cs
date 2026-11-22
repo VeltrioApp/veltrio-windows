@@ -17,6 +17,8 @@ public sealed partial class HomePage : Page
     {
         InitializeComponent();
         CoreService.AddonsChanged += () => _stale = true;
+        TmdbService.Changed += () => _stale = true;
+        AppPrefs.LanguageChanged += () => _stale = true;
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -29,9 +31,6 @@ public sealed partial class HomePage : Page
     private void Rebuild()
     {
         _stale = false;
-        var addons = CoreService.EnabledAddons;
-        EmptyState.Visibility = addons.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        RowsPanel.Visibility = addons.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         Hero.Visibility = Visibility.Collapsed;
         _hero = null;
 
@@ -44,6 +43,8 @@ public sealed partial class HomePage : Page
             Addon = pair.Addon,
             Catalog = pair.Catalog,
         }).ToList();
+        EmptyState.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        RowsPanel.Visibility = rows.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         Rows.ItemsSource = rows;
         foreach (var row in rows) _ = LoadRowAsync(row);
     }
@@ -101,12 +102,16 @@ public sealed partial class HomePage : Page
 
     private void OnOpenSources(object sender, RoutedEventArgs e) => Navigator.Window.ShowSection(3);
 
-    private async void OnInstallCinemeta(object sender, RoutedEventArgs e)
+    private async void OnConnectTmdb(object sender, RoutedEventArgs e)
     {
-        InstallCinemeta.IsEnabled = false;
-        var error = await CoreService.InstallAddonAsync(CoreService.SuggestedAddons[0].Url);
-        InstallCinemeta.IsEnabled = true;
-        EmptyError.Text = error ?? "";
-        if (error is null) Rebuild();
+        ConnectTmdb.IsEnabled = false;
+        var ok = await TmdbService.ConnectAsync(TmdbKeyInput.Password);
+        ConnectTmdb.IsEnabled = true;
+        EmptyError.Text = ok ? "" : (TmdbService.Error ?? "");
+        if (ok)
+        {
+            TmdbKeyInput.Password = "";
+            Rebuild();
+        }
     }
 }

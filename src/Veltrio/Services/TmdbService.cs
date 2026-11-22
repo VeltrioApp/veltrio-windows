@@ -1,20 +1,29 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace Veltrio.Services;
 
-/// <summary>Optional TMDB integration for localized movie and series titles
-/// and synopses on top of Cinemeta / Stremio metadata. Accepts either a TMDB
-/// v3 API key or a v4 Read Access Token.</summary>
+/// <summary>Native TMDB catalog, search, and metadata service for Windows.
+/// Replaces Cinemeta so every catalog row, hero, search result, title page,
+/// and episode list is localized in the user's chosen language while resolving
+/// IMDb IDs (external_ids.imdb_id) for Stremio stream addons.</summary>
 public static class TmdbService
 {
+    public const string AddonId = "tmdb";
+    public const string TransportUrl = "tmdb://api.themoviedb.org/3";
+
     private const string KeySecret = "tmdb.key";
     private const string LangSecret = "tmdb.lang";
     private const string BaseUrl = "https://api.themoviedb.org/3";
+    private const string ImgPoster = "https://image.tmdb.org/t/p/w500";
+    private const string ImgBackdrop = "https://image.tmdb.org/t/p/w1280";
+    private const string ImgStill = "https://image.tmdb.org/t/p/w500";
 
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
-    private static readonly ConcurrentDictionary<string, LocalizedMeta> Cache = new();
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly ConcurrentDictionary<string, LocalizedMeta> LocalizeCache = new();
+    private static readonly ConcurrentDictionary<string, Dictionary<int, string>> GenreCache = new();
 
     public static readonly (string Code, string Label)[] Languages =
     {
@@ -25,21 +34,54 @@ public static class TmdbService
         ("it-IT", "Italiano"),
         ("pt-BR", "Português"),
         ("ja-JP", "日本語"),
-        ("", "Désactivé (langue de l'addon)"),
     };
 
     public record LocalizedMeta(string? Title, string? Overview);
 
     public static bool IsConnected => !string.IsNullOrWhiteSpace(SecretStore.Get(KeySecret));
-    public static string Language => SecretStore.Get(LangSecret) ?? "fr-FR";
+    public static string Language
+    {
+        get
+        {
+            var saved = SecretStore.Get(LangSecret);
+            return string.IsNullOrWhiteSpace(saved) ? DefaultLanguage() : saved;
+        }
+    }
     public static bool IsBusy { get; private set; }
     public static string? Error { get; private set; }
 
     public static event Action? Changed;
 
+    private static string DefaultLanguage() => AppPrefs.IsFrench ? "fr-FR" : "en-US";
+
+    public static AddonInfo VirtualAddon() => new()
+    {
+        Id = AddonId,
+        Version = "3.0.0",
+        Name = "TMDB",
+        Description = AppPrefs.Tr("Catalogues et fiches localisées via The Movie Database.", "Localized catalogs and metadata via The Movie Database."),
+        Types = new List<string> { "movie", "series" },
+        Resources = new List<string> { "catalog", "meta" },
+        Catalogs = new List<CatalogInfo>
+        {
+            new() { Type = "movie", Id = "trending", Name = AppPrefs.Tr("Films populaires", "Trending Movies"), Extras = new List<string> { "skip", "search" } },
+            new() { Type = "series", Id = "trending", Name = AppPrefs.Tr("Séries populaires", "Trending Series"), Extras = new List<string> { "skip", "search" } },
+            new() { Type = "movie", Id = "now_playing", Name = AppPrefs.Tr("Au cinéma", "Now Playing"), Extras = new List<string> { "skip" } },
+            new() { Type = "series", Id = "on_the_air", Name = AppPrefs.Tr("Séries du moment", "On The Air"), Extras = new List<string> { "skip" } },
+            new() { Type = "movie", Id = "top_rated", Name = AppPrefs.Tr("Films les mieux notés", "Top Rated Movies"), Extras = new List<string> { "skip" } },
+            new() { Type = "series", Id = "top_rated", Name = AppPrefs.Tr("Séries les mieux notées", "Top Rated Series"), Extras = new List<string> { "skip" } },
+        },
+        IdPrefixes = new List<string> { "tmdb:", "tt" },
+        TransportUrl = TransportUrl,
+    };
+
     public static void SetLanguage(string lang)
     {
-        SecretStore.Set(LangSecret, lang);
+        var clean = string.IsNullOrWhiteSpace(lang) ? DefaultLanguage() : lang;
+        SecretStore.Set(LangSecret, clean);
+        LocalizeCache.Clear();
+        GenreCache.Clear();
+        CoreService.ClearCatalogCache();
         Changed?.Invoke();
     }
 
@@ -48,7 +90,7 @@ public static class TmdbService
         var key = rawKey.Trim();
         if (string.IsNullOrEmpty(key))
         {
-            Error = "Saisissez une clé API ou un jeton TMDB.";
+            Error = AppPrefs.Tr("Saisissez une clé API ou un jeton TMDB.", "Enter a TMDB API key or token.");
             Changed?.Invoke();
             return false;
         }
@@ -61,12 +103,14 @@ public static class TmdbService
             using var resp = await Http.SendAsync(req);
             if (!resp.IsSuccessStatusCode)
             {
-                Error = $"Clé TMDB invalide (HTTP {(int)resp.StatusCode}).";
+                Error = AppPrefs.Tr($"Clé TMDB invalide (HTTP {(int)resp.StatusCode}).", $"Invalid TMDB key (HTTP {(int)resp.StatusCode}).");
                 return false;
             }
             SecretStore.Set(KeySecret, key);
-            if (SecretStore.Get(LangSecret) is null) SecretStore.Set(LangSecret, "fr-FR");
-            Cache.Clear();
+            if (string.IsNullOrWhiteSpace(SecretStore.Get(LangSecret))) SecretStore.Set(LangSecret, DefaultLanguage());
+            LocalizeCache.Clear();
+            GenreCache.Clear();
+            CoreService.ClearCatalogCache();
             return true;
         }
         catch (Exception ex)
@@ -84,9 +128,206 @@ public static class TmdbService
     public static void Disconnect()
     {
         SecretStore.Set(KeySecret, null);
-        Cache.Clear();
+        LocalizeCache.Clear();
+        GenreCache.Clear();
+        CoreService.ClearCatalogCache();
         Error = null;
         Changed?.Invoke();
+    }
+
+    public static async Task<IReadOnlyList<PosterItem>> FetchCatalogAsync(string type, string catalogId, int skip = 0)
+    {
+        var key = SecretStore.Get(KeySecret)?.Trim();
+        if (string.IsNullOrEmpty(key)) return Array.Empty<PosterItem>();
+        var lang = Language;
+        var page = (skip / 20) + 1;
+        var isSeries = string.Equals(type, "series", StringComparison.OrdinalIgnoreCase);
+        var path = (isSeries, catalogId) switch
+        {
+            (false, "trending") => $"/trending/movie/week?language={lang}&page={page}",
+            (true, "trending") => $"/trending/tv/week?language={lang}&page={page}",
+            (false, "now_playing") => $"/movie/now_playing?language={lang}&page={page}",
+            (true, "on_the_air") => $"/tv/on_the_air?language={lang}&page={page}",
+            (false, "top_rated") => $"/movie/top_rated?language={lang}&page={page}",
+            (true, "top_rated") => $"/tv/top_rated?language={lang}&page={page}",
+            _ => null,
+        };
+        if (path is null) return Array.Empty<PosterItem>();
+        var genres = await GenreMapAsync(isSeries, lang, key);
+        using var doc = await GetJsonAsync(path, key);
+        var addon = VirtualAddon();
+        var list = new List<PosterItem>();
+        if (doc.RootElement.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var el in results.EnumerateArray())
+            {
+                if (ParsePoster(el, isSeries ? "series" : "movie", genres, addon) is { } p) list.Add(p);
+            }
+        }
+        return list;
+    }
+
+    public static async Task<IReadOnlyList<PosterItem>> SearchAsync(string query, string type)
+    {
+        var key = SecretStore.Get(KeySecret)?.Trim();
+        if (string.IsNullOrEmpty(key)) return Array.Empty<PosterItem>();
+        var lang = Language;
+        var isSeries = string.Equals(type, "series", StringComparison.OrdinalIgnoreCase);
+        var endpoint = isSeries ? "tv" : "movie";
+        var encoded = Uri.EscapeDataString(query);
+        var genres = await GenreMapAsync(isSeries, lang, key);
+        using var doc = await GetJsonAsync($"/search/{endpoint}?query={encoded}&language={lang}&include_adult=false", key);
+        var addon = VirtualAddon();
+        var list = new List<PosterItem>();
+        if (doc.RootElement.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var el in results.EnumerateArray())
+            {
+                if (ParsePoster(el, isSeries ? "series" : "movie", genres, addon) is { } p) list.Add(p);
+            }
+        }
+        return list;
+    }
+
+    public static async Task<TitleDetails> FetchDetailsAsync(string type, string id)
+    {
+        var key = SecretStore.Get(KeySecret)?.Trim();
+        if (string.IsNullOrEmpty(key))
+            throw new InvalidOperationException(AppPrefs.Tr("Connectez votre clé TMDB dans les réglages.", "Connect your TMDB key in Settings."));
+        var lang = Language;
+        var isSeries = string.Equals(type, "series", StringComparison.OrdinalIgnoreCase);
+        var tmdbId = await ResolveTmdbIdAsync(id, isSeries, lang, key)
+            ?? throw new InvalidOperationException(AppPrefs.Tr("Titre introuvable sur TMDB.", "Title not found on TMDB."));
+
+        var mediaType = isSeries ? "tv" : "movie";
+        using var doc = await GetJsonAsync($"/{mediaType}/{tmdbId}?language={lang}&append_to_response=external_ids,credits", key);
+        var root = doc.RootElement;
+
+        string? imdbId = null;
+        if (root.TryGetProperty("external_ids", out var ext) && ext.ValueKind == JsonValueKind.Object)
+            imdbId = Str(ext, "imdb_id");
+        imdbId ??= Str(root, "imdb_id");
+        if (imdbId is null || !imdbId.StartsWith("tt", StringComparison.Ordinal))
+            imdbId = id.StartsWith("tt", StringComparison.Ordinal) ? id : null;
+        var canonicalId = imdbId ?? $"tmdb:{tmdbId}";
+
+        var title = (Str(root, "title") ?? Str(root, "name") ?? Str(root, "original_title") ?? Str(root, "original_name") ?? "").Trim();
+        var overview = Str(root, "overview");
+        var poster = Str(root, "poster_path") is { } pp ? ImgPoster + pp : null;
+        var backdrop = Str(root, "backdrop_path") is { } bp ? ImgBackdrop + bp : null;
+        var rating = DoubleVal(root, "vote_average") is { } v && v > 0 ? v.ToString("0.0", CultureInfo.InvariantCulture) : null;
+        var dateStr = Str(root, "release_date") ?? Str(root, "first_air_date");
+        var year = dateStr is { Length: >= 4 } ? dateStr[..4] : null;
+        int? runtimeMin = null;
+        if (isSeries)
+        {
+            if (root.TryGetProperty("episode_run_time", out var ert) && ert.ValueKind == JsonValueKind.Array && ert.GetArrayLength() > 0 && ert[0].TryGetInt32(out var r))
+                runtimeMin = r;
+        }
+        else if (root.TryGetProperty("runtime", out var rt) && rt.TryGetInt32(out var r))
+        {
+            runtimeMin = r;
+        }
+        var runtime = runtimeMin is > 0 ? $"{runtimeMin} min" : null;
+
+        var genres = new List<string>();
+        if (root.TryGetProperty("genres", out var gArr) && gArr.ValueKind == JsonValueKind.Array)
+            foreach (var g in gArr.EnumerateArray()) if (Str(g, "name") is { } gn) genres.Add(gn);
+
+        var cast = new List<string>();
+        var directors = new List<string>();
+        var writers = new List<string>();
+        if (root.TryGetProperty("credits", out var credits) && credits.ValueKind == JsonValueKind.Object)
+        {
+            if (credits.TryGetProperty("cast", out var cArr) && cArr.ValueKind == JsonValueKind.Array)
+                foreach (var c in cArr.EnumerateArray().Take(12)) if (Str(c, "name") is { } cn) cast.Add(cn);
+            if (credits.TryGetProperty("crew", out var crewArr) && crewArr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var c in crewArr.EnumerateArray())
+                {
+                    var name = Str(c, "name");
+                    if (name is null) continue;
+                    if (!isSeries && Str(c, "job") == "Director") directors.Add(name);
+                    if (Str(c, "department") == "Writing" && !writers.Contains(name) && writers.Count < 4) writers.Add(name);
+                }
+            }
+        }
+        if (isSeries && root.TryGetProperty("created_by", out var cbArr) && cbArr.ValueKind == JsonValueKind.Array)
+            foreach (var c in cbArr.EnumerateArray()) if (Str(c, "name") is { } cn) directors.Add(cn);
+
+        var episodes = new List<EpisodeItem>();
+        if (isSeries && root.TryGetProperty("seasons", out var sArr) && sArr.ValueKind == JsonValueKind.Array)
+        {
+            var seasonNums = sArr.EnumerateArray()
+                .Select(s => s.TryGetProperty("season_number", out var sn) && sn.TryGetInt32(out var n) ? n : 0)
+                .Where(n => n > 0).Distinct().OrderBy(n => n).Take(30).ToList();
+            var chunks = await Task.WhenAll(seasonNums.Select(async sNum =>
+            {
+                try
+                {
+                    using var sDoc = await GetJsonAsync($"/tv/{tmdbId}/season/{sNum}?language={lang}", key);
+                    var eps = new List<EpisodeItem>();
+                    if (sDoc.RootElement.TryGetProperty("episodes", out var eArr) && eArr.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var ep in eArr.EnumerateArray())
+                        {
+                            if (!ep.TryGetProperty("episode_number", out var en) || !en.TryGetInt32(out var epNum)) continue;
+                            var epTitle = Str(ep, "name") ?? AppPrefs.Tr($"Épisode {epNum}", $"Episode {epNum}");
+                            eps.Add(new EpisodeItem
+                            {
+                                Id = $"{canonicalId}:{sNum}:{epNum}",
+                                Title = epTitle,
+                                Season = sNum,
+                                Episode = epNum,
+                                Thumbnail = Str(ep, "still_path") is { } sp ? ImgStill + sp : null,
+                                Overview = Str(ep, "overview"),
+                                Released = Str(ep, "air_date"),
+                            });
+                        }
+                    }
+                    return eps;
+                }
+                catch
+                {
+                    return new List<EpisodeItem>();
+                }
+            }));
+            foreach (var c in chunks) episodes.AddRange(c);
+        }
+
+        return new TitleDetails
+        {
+            Id = canonicalId,
+            Type = isSeries ? "series" : "movie",
+            Name = title,
+            Poster = poster,
+            Background = backdrop,
+            Description = overview,
+            Rating = rating,
+            Year = year,
+            Runtime = runtime,
+            Genres = genres,
+            Cast = cast,
+            Director = directors,
+            Writer = writers,
+            Episodes = episodes,
+            Addon = VirtualAddon(),
+        };
+    }
+
+    private static async Task<string?> ResolveTmdbIdAsync(string id, bool isSeries, string lang, string key)
+    {
+        if (id.StartsWith("tmdb:", StringComparison.Ordinal)) return id[5..];
+        if (id.StartsWith("tt", StringComparison.Ordinal))
+        {
+            using var doc = await GetJsonAsync($"/find/{id}?external_source=imdb_id&language={lang}", key);
+            var primary = FirstResult(doc.RootElement, isSeries ? "tv_results" : "movie_results")
+                ?? FirstResult(doc.RootElement, isSeries ? "movie_results" : "tv_results");
+            if (primary is { } item && item.TryGetProperty("id", out var tid) && tid.TryGetInt64(out var n) && n > 0)
+                return n.ToString(CultureInfo.InvariantCulture);
+            return null;
+        }
+        return long.TryParse(id, out var parsed) ? parsed.ToString(CultureInfo.InvariantCulture) : null;
     }
 
     public static async Task<LocalizedMeta?> LocalizeAsync(string imdbId, string type)
@@ -96,26 +337,19 @@ public static class TmdbService
         if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(lang) || !imdbId.StartsWith("tt", StringComparison.Ordinal))
             return null;
         var cacheKey = $"{imdbId}|{type}|{lang}";
-        if (Cache.TryGetValue(cacheKey, out var hit)) return hit;
+        if (LocalizeCache.TryGetValue(cacheKey, out var hit)) return hit;
         try
         {
-            using var req = BuildRequest($"/find/{imdbId}?external_source=imdb_id&language={lang}", key);
-            using var resp = await Http.SendAsync(req);
-            if (!resp.IsSuccessStatusCode) return null;
-            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            using var doc = await GetJsonAsync($"/find/{imdbId}?external_source=imdb_id&language={lang}", key);
             var root = doc.RootElement;
             var isSeries = string.Equals(type, "series", StringComparison.OrdinalIgnoreCase);
             var primary = FirstResult(root, isSeries ? "tv_results" : "movie_results")
                 ?? FirstResult(root, isSeries ? "movie_results" : "tv_results");
             if (primary is not { } item) return null;
-            string? title = null;
-            if (item.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String) title = t.GetString();
-            else if (item.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String) title = n.GetString();
-            string? overview = item.TryGetProperty("overview", out var o) && o.ValueKind == JsonValueKind.String ? o.GetString() : null;
-            var res = new LocalizedMeta(
-                string.IsNullOrWhiteSpace(title) ? null : title,
-                string.IsNullOrWhiteSpace(overview) ? null : overview);
-            Cache[cacheKey] = res;
+            var title = Str(item, "title") ?? Str(item, "name");
+            var overview = Str(item, "overview");
+            var res = new LocalizedMeta(title, overview);
+            LocalizeCache[cacheKey] = res;
             return res;
         }
         catch
@@ -124,12 +358,81 @@ public static class TmdbService
         }
     }
 
+    private static async Task<Dictionary<int, string>> GenreMapAsync(bool isSeries, string lang, string key)
+    {
+        var cacheKey = $"{(isSeries ? "tv" : "movie")}|{lang}";
+        if (GenreCache.TryGetValue(cacheKey, out var hit)) return hit;
+        try
+        {
+            using var doc = await GetJsonAsync($"/genre/{(isSeries ? "tv" : "movie")}/list?language={lang}", key);
+            var map = new Dictionary<int, string>();
+            if (doc.RootElement.TryGetProperty("genres", out var arr) && arr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var g in arr.EnumerateArray())
+                {
+                    if (g.TryGetProperty("id", out var idEl) && idEl.TryGetInt32(out var gid) && Str(g, "name") is { } name)
+                        map[gid] = name;
+                }
+            }
+            GenreCache[cacheKey] = map;
+            return map;
+        }
+        catch
+        {
+            return new Dictionary<int, string>();
+        }
+    }
+
+    private static PosterItem? ParsePoster(JsonElement el, string type, Dictionary<int, string> genres, AddonInfo addon)
+    {
+        if (!el.TryGetProperty("id", out var idEl) || !idEl.TryGetInt64(out var tmdbId) || tmdbId <= 0) return null;
+        var title = Str(el, "title") ?? Str(el, "name") ?? Str(el, "original_title") ?? Str(el, "original_name");
+        if (string.IsNullOrWhiteSpace(title)) return null;
+        var dateStr = Str(el, "release_date") ?? Str(el, "first_air_date");
+        var year = dateStr is { Length: >= 4 } ? dateStr[..4] : null;
+        var rating = DoubleVal(el, "vote_average") is { } v && v > 0 ? v.ToString("0.0", CultureInfo.InvariantCulture) : null;
+        var itemGenres = new List<string>();
+        if (el.TryGetProperty("genre_ids", out var gArr) && gArr.ValueKind == JsonValueKind.Array)
+            foreach (var g in gArr.EnumerateArray())
+                if (g.TryGetInt32(out var gid) && genres.TryGetValue(gid, out var gName)) itemGenres.Add(gName);
+
+        return new PosterItem
+        {
+            Id = $"tmdb:{tmdbId}",
+            Type = type,
+            Title = title,
+            PosterUrl = Str(el, "poster_path") is { } pp ? ImgPoster + pp : null,
+            BackgroundUrl = Str(el, "backdrop_path") is { } bp ? ImgBackdrop + bp : null,
+            Description = Str(el, "overview"),
+            Year = year,
+            Rating = rating,
+            Genres = itemGenres,
+            Addon = addon,
+        };
+    }
+
+    private static async Task<JsonDocument> GetJsonAsync(string path, string key)
+    {
+        using var req = BuildRequest(path, key);
+        using var resp = await Http.SendAsync(req);
+        resp.EnsureSuccessStatusCode();
+        return JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+    }
+
     private static JsonElement? FirstResult(JsonElement root, string prop)
     {
         if (root.TryGetProperty(prop, out var arr) && arr.ValueKind == JsonValueKind.Array && arr.GetArrayLength() > 0)
             return arr[0];
         return null;
     }
+
+    private static string? Str(JsonElement el, string prop) =>
+        el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(v.GetString())
+            ? v.GetString()
+            : null;
+
+    private static double? DoubleVal(JsonElement el, string prop) =>
+        el.TryGetProperty(prop, out var v) && v.TryGetDouble(out var d) ? d : null;
 
     private static HttpRequestMessage BuildRequest(string path, string key)
     {

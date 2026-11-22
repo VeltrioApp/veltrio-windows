@@ -25,6 +25,7 @@ public sealed partial class SettingsPage : Page
         Versions.Text = $"Veltrio {app} · core {core} · libmpv · Windows App SDK";
         LoadPlaybackChoices();
         BuildThemeChips();
+        BuildLanguageChips();
         _ = MeasureTorrentCacheAsync();
     }
 
@@ -164,6 +165,26 @@ public sealed partial class SettingsPage : Page
     // -------------------- appearance --------------------
 
     private static readonly AppTheme StartedWith = AppPrefs.Current.Theme;
+
+    private void BuildLanguageChips()
+    {
+        LanguageChips.Children.Clear();
+        foreach (var (code, label) in new[] { ("", AppPrefs.Tr("AUTOMATIQUE", "AUTOMATIC")), ("fr", "FRANÇAIS"), ("en", "ENGLISH") })
+        {
+            var chip = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
+            {
+                Content = label,
+                IsChecked = AppPrefs.Current.AppLanguage == code,
+                Style = Res<Style>("VeltrioChip"),
+            };
+            chip.Click += (_, _) =>
+            {
+                AppPrefs.SetAppLanguage(code);
+                BuildLanguageChips();
+            };
+            LanguageChips.Children.Add(chip);
+        }
+    }
 
     private void BuildThemeChips()
     {
