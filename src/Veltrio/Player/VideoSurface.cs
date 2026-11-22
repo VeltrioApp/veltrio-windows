@@ -90,7 +90,21 @@ public sealed unsafe class VideoSurface : IDisposable
             {
                 _wake.WaitOne(250);
                 if (_stopping) break;
-                if (_resize) Resize();
+                if (_resize)
+                {
+                    try
+                    {
+                        Resize();
+                    }
+                    catch (Exception ex)
+                    {
+                        PlayerLog.Write($"[video] resize error (will retry): {ex.Message}");
+                        _resize = true;
+                        Thread.Sleep(50);
+                        continue;
+                    }
+                }
+                if (_surface == IntPtr.Zero || _target is null) continue;
                 var flags = LibMpv.RenderContextUpdate(_renderContext);
                 if ((flags & LibMpv.RenderUpdateFrame) != 0) RenderFrame();
             }
@@ -194,7 +208,7 @@ public sealed unsafe class VideoSurface : IDisposable
 
     private void DestroyTarget()
     {
-        Egl.MakeCurrent(_display, IntPtr.Zero, IntPtr.Zero, _glContext);
+        Egl.MakeCurrent(_display, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
         if (_surface != IntPtr.Zero) Egl.DestroySurface(_display, _surface);
         _surface = IntPtr.Zero;
         _target?.Dispose();
@@ -204,14 +218,22 @@ public sealed unsafe class VideoSurface : IDisposable
     private void Resize()
     {
         _resize = false;
-        ApplyScale();
-        if (_wantWidth == _width && _wantHeight == _height) return;
-        _width = _wantWidth;
-        _height = _wantHeight;
+        var w = _wantWidth;
+        var h = _wantHeight;
+        if (w < 16 || h < 16) return;
+        if (w == _width && h == _height)
+        {
+            ApplyScale();
+            return;
+        }
+        _width = w;
+        _height = h;
         DestroyTarget();
         _context!.ClearState();
         _context.Flush();
         _swapChain!.ResizeBuffers(2, (uint)_width, (uint)_height, Format.B8G8R8A8_UNorm, SwapChainFlags.None).CheckError();
+        // ResizeBuffers resets the DXGI swapchain transform on some drivers; always re-apply scale after.
+        ApplyScale();
         CreateTarget();
         RenderFrame(); // don't leave a stretched old frame
     }
