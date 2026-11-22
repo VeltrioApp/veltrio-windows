@@ -156,11 +156,27 @@ public sealed partial class LivePage : Page
         ViewChips.Children.Clear();
         if (_kind == ChannelKind.Live)
         {
-            ViewChips.Children.Add(Chip("LISTE", !_guide, () => { _guide = false; ShowView(); return Task.CompletedTask; }));
-            ViewChips.Children.Add(Chip("GUIDE TV", _guide, () => { _guide = true; ShowView(); return Task.CompletedTask; }));
+            var favCount = _items.Count(c => IptvStore.IsFavorite(c.Id));
+            ViewChips.Children.Add(Chip("LISTE", !_guide && !_favoritesOnly, () => { _guide = false; _favoritesOnly = false; ApplyFilter(); return Task.CompletedTask; }));
+            ViewChips.Children.Add(Chip($"★ FAVORIS ({favCount})", _favoritesOnly, () => { _favoritesOnly = !_favoritesOnly; if (_favoritesOnly) _guide = false; ApplyFilter(); return Task.CompletedTask; }));
+            ViewChips.Children.Add(Chip("GUIDE TV", _guide, () => { _guide = true; _favoritesOnly = false; ShowView(); return Task.CompletedTask; }));
+            if (_selected is { } sel)
+            {
+                var isFav = IptvStore.IsFavorite(sel.Id);
+                ViewChips.Children.Add(Chip(isFav ? "★ RETIRER FAVORI" : "☆ AJOUTER FAVORI", isFav, () => { IptvStore.ToggleFavorite(sel.Id); ApplyFilter(); return Task.CompletedTask; }));
+            }
+            var activeGroup = GroupPicker.SelectedIndex > 0 ? VisibleGroups().ElementAtOrDefault(GroupPicker.SelectedIndex - 1)?.Key : null;
+            if (activeGroup is not null)
+                ViewChips.Children.Add(Chip("MASQUER CE BOUQUET", false, () => { IptvStore.ToggleHiddenGroup(activeGroup); GroupPicker.SelectedIndex = 0; ApplyFilter(); return Task.CompletedTask; }));
+            if (IptvStore.HiddenGroups.Count > 0)
+                ViewChips.Children.Add(Chip($"RÉAFFICHER ({IptvStore.HiddenGroups.Count})", false, () => { foreach (var g in IptvStore.HiddenGroups.ToList()) IptvStore.ToggleHiddenGroup(g); ApplyFilter(); return Task.CompletedTask; }));
         }
         Filter.PlaceholderText = _kind switch { ChannelKind.Movie => "Rechercher un film", ChannelKind.Series => "Rechercher une série", _ => "Rechercher une chaîne" };
     }
+
+    private bool _favoritesOnly;
+    private List<IGrouping<string, ChannelItem>> VisibleGroups() =>
+        _items.GroupBy(i => i.Group).Where(g => !IptvStore.IsGroupHidden(g.Key)).ToList();
 
     private ToggleButton Chip(string label, bool isChecked, Func<Task> action)
     {
@@ -175,9 +191,9 @@ public sealed partial class LivePage : Page
 
     private IEnumerable<ChannelItem> Filtered()
     {
-        var group = GroupPicker.SelectedIndex > 0 ? _items.GroupBy(i => i.Group).ElementAtOrDefault(GroupPicker.SelectedIndex - 1)?.Key : null;
+        var group = GroupPicker.SelectedIndex > 0 ? VisibleGroups().ElementAtOrDefault(GroupPicker.SelectedIndex - 1)?.Key : null;
         var text = Filter.Text.Trim();
-        return _items.Where(c => group is null || c.Group == group)
+        return _items.Where(c => _favoritesOnly ? IptvStore.IsFavorite(c.Id) : (!IptvStore.IsGroupHidden(c.Group) && (group is null || c.Group == group)))
                      .Where(c => text.Length == 0 || c.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase));
     }
 

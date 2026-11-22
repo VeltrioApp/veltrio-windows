@@ -9,14 +9,36 @@ public static class IptvStore
 {
     private const string File = "iptv-playlists.json";
     private const string SelectedFile = "iptv-selected.json";
+    private const string FavoritesFile = "iptv-favorites.json";
+    private const string HiddenGroupsFile = "iptv-hidden-groups.json";
 
     private static readonly IptvClient Client = new();
     private static readonly List<PlaylistRef> _playlists = LoadPlaylists();
     private static readonly Dictionary<(Guid, ChannelKind), Task<IReadOnlyList<ChannelItem>>> _cache = new();
+    private static readonly HashSet<string> _favorites = Storage.Load(FavoritesFile, new HashSet<string>());
+    private static readonly HashSet<string> _hiddenGroups = Storage.Load(HiddenGroupsFile, new HashSet<string>());
 
     public static event Action? Changed;
 
     public static IReadOnlyList<PlaylistRef> Playlists => _playlists;
+    public static IReadOnlySet<string> Favorites => _favorites;
+    public static IReadOnlySet<string> HiddenGroups => _hiddenGroups;
+
+    public static bool IsFavorite(string channelId) => _favorites.Contains(channelId);
+    public static void ToggleFavorite(string channelId)
+    {
+        if (!_favorites.Add(channelId)) _favorites.Remove(channelId);
+        Storage.Save(FavoritesFile, _favorites);
+        Changed?.Invoke();
+    }
+
+    public static bool IsGroupHidden(string group) => _hiddenGroups.Contains(group);
+    public static void ToggleHiddenGroup(string group)
+    {
+        if (!_hiddenGroups.Add(group)) _hiddenGroups.Remove(group);
+        Storage.Save(HiddenGroupsFile, _hiddenGroups);
+        Changed?.Invoke();
+    }
 
     private static List<PlaylistRef> LoadPlaylists()
     {

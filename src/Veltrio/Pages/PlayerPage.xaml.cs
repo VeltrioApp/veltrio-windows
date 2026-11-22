@@ -125,6 +125,8 @@ public sealed partial class PlayerPage : Page
         NextButton.Visibility = request.Next is null ? Visibility.Collapsed : Visibility.Visible;
         if (request.NextLabel is { } next) ToolTipService.SetToolTip(NextButton, $"Épisode suivant (N) : {next}");
         if (request.ContentType is "movie" or "series") _ = FetchAddonSubtitlesAsync(request.ContentType, request.VideoId ?? request.ContentId!);
+        if (request.ContentId is { } cid && cid.StartsWith("tt", StringComparison.Ordinal) && request.Season is { } s && request.Episode is { } ep)
+            _ = FetchIntroWindowAsync(cid, s, ep);
 
         if (!request.IsLive)
         {
@@ -470,9 +472,24 @@ public sealed partial class PlayerPage : Page
 
     // -------------------- skip intro / next episode --------------------
 
+    private IntroService.IntroWindow? _introWindow;
+
+    private async Task FetchIntroWindowAsync(string imdbId, int season, int episode)
+    {
+        _introWindow = await IntroService.FetchIntroAsync(imdbId, season, episode);
+    }
+
+    private double? EffectiveIntroEnd()
+    {
+        if (_player is null) return null;
+        if (_player.IntroEnd is { } end) return end;
+        if (_introWindow is { } w && _player.Position >= w.StartSec && _player.Position < w.EndSec) return w.EndSec;
+        return null;
+    }
+
     private void SkipIntro()
     {
-        if (_player?.IntroEnd is { } end) _player.SeekTo(end);
+        if (EffectiveIntroEnd() is { } end) _player?.SeekTo(end);
     }
 
     private void OnSkipIntro(object sender, RoutedEventArgs e) => SkipIntro();
@@ -801,6 +818,7 @@ public sealed partial class PlayerPage : Page
                 RemainingText.Text = "-" + TimeLabelConverter.Format(Math.Max(0, p.Duration - p.Position));
                 TimePosition.Text = TimeLabelConverter.Format(p.Position);
                 TimeDuration.Text = TimeLabelConverter.Format(p.Duration);
+                SkipIntroButton.Visibility = EffectiveIntroEnd() is null ? Visibility.Collapsed : Visibility.Visible;
                 break;
             case "pause":
                 PlayPauseIcon.Glyph = p.IsPaused ? "\uE768" : "\uE769";
@@ -830,7 +848,7 @@ public sealed partial class PlayerPage : Page
                 break;
             case "chapter":
             case "chapters":
-                SkipIntroButton.Visibility = p.IntroEnd is null ? Visibility.Collapsed : Visibility.Visible;
+                SkipIntroButton.Visibility = EffectiveIntroEnd() is null ? Visibility.Collapsed : Visibility.Visible;
                 Scrubber.Chapters = p.Chapters.Select(c => c.Start).ToList();
                 break;
         }

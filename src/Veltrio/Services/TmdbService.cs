@@ -189,6 +189,46 @@ public static class TmdbService
         return list;
     }
 
+    public static readonly (int Id, string Name)[] DiscoverProviders =
+    {
+        (8, "Netflix"), (350, "Apple TV+"), (337, "Disney+"),
+        (119, "Prime Video"), (1899, "Max"), (381, "Canal+"),
+    };
+
+    public static readonly (int MovieId, int TvId, string Fr, string En)[] DiscoverGenres =
+    {
+        (28, 10759, "Action", "Action"),
+        (878, 10765, "Sci-Fi", "Sci-Fi"),
+        (35, 35, "Comédie", "Comedy"),
+        (18, 18, "Drame", "Drama"),
+        (53, 9648, "Thriller", "Thriller"),
+        (16, 16, "Animation", "Animation"),
+        (27, 9648, "Horreur", "Horror"),
+        (99, 99, "Documentaire", "Documentary"),
+    };
+
+    public static async Task<IReadOnlyList<PosterItem>> DiscoverAsync(string type, int? genreId = null, int? providerId = null, int page = 1)
+    {
+        var key = SecretStore.Get(KeySecret)?.Trim();
+        if (string.IsNullOrEmpty(key)) return Array.Empty<PosterItem>();
+        var lang = Language;
+        var parts = lang.Split('-');
+        var region = parts.Length > 1 ? parts[1].ToUpperInvariant() : "FR";
+        var isSeries = string.Equals(type, "series", StringComparison.OrdinalIgnoreCase);
+        var endpoint = isSeries ? "tv" : "movie";
+        var q = new List<string> { $"language={lang}", "sort_by=popularity.desc", "include_adult=false", $"page={page}" };
+        if (genreId is { } gid) q.Add($"with_genres={gid}");
+        if (providerId is { } pid) { q.Add($"with_watch_providers={pid}"); q.Add($"watch_region={region}"); }
+        var genres = await GenreMapAsync(isSeries, lang, key);
+        using var doc = await GetJsonAsync($"/discover/{endpoint}?{string.Join("&", q)}", key);
+        var addon = VirtualAddon();
+        var list = new List<PosterItem>();
+        if (doc.RootElement.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
+            foreach (var el in results.EnumerateArray())
+                if (ParsePoster(el, isSeries ? "series" : "movie", genres, addon) is { } p) list.Add(p);
+        return list;
+    }
+
     public static async Task<TitleDetails> FetchDetailsAsync(string type, string id)
     {
         var key = SecretStore.Get(KeySecret)?.Trim();
