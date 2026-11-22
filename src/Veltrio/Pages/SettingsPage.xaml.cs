@@ -32,6 +32,7 @@ public sealed partial class SettingsPage : Page
     {
         DebridService.Changed += OnDebridChanged;
         StremioAccountService.Changed += OnAccountsChanged;
+        TmdbService.Changed += OnAccountsChanged;
         TraktService.Changed += OnAccountsChanged;
         SimklService.Changed += OnAccountsChanged;
         DownloadManager.Changed += OnDownloadsChanged;
@@ -46,6 +47,7 @@ public sealed partial class SettingsPage : Page
     {
         DebridService.Changed -= OnDebridChanged;
         StremioAccountService.Changed -= OnAccountsChanged;
+        TmdbService.Changed -= OnAccountsChanged;
         TraktService.Changed -= OnAccountsChanged;
         SimklService.Changed -= OnAccountsChanged;
         DownloadManager.Changed -= OnDownloadsChanged;
@@ -374,8 +376,48 @@ public sealed partial class SettingsPage : Page
     {
         AccountCards.Children.Clear();
         AccountCards.Children.Add(StremioCard());
+        AccountCards.Children.Add(TmdbCard());
         AccountCards.Children.Add(TraktCard());
         AccountCards.Children.Add(SimklCard());
+    }
+
+    private FrameworkElement TmdbCard()
+    {
+        var connected = TmdbService.IsConnected;
+        var (card, actions) = Shell("TMDB", "#01B4E4",
+            connected ? $"CONNECTÉ · {TmdbService.Language}" : "Optionnel · titres et résumés traduits.", connected);
+        if (connected)
+        {
+            actions.Children.Add(ActionButton("DÉCONNECTER", ghost: true, TmdbService.Disconnect));
+            var box = new ComboBox { MinWidth = 220 };
+            foreach (var (code, label) in TmdbService.Languages)
+            {
+                var item = new ComboBoxItem { Content = label, Tag = code };
+                box.Items.Add(item);
+                if (code == TmdbService.Language) box.SelectedItem = item;
+            }
+            box.SelectionChanged += (_, _) =>
+            {
+                if ((box.SelectedItem as ComboBoxItem)?.Tag is string lang) TmdbService.SetLanguage(lang);
+            };
+            AddRow(card, box);
+        }
+        else
+        {
+            var row = new Grid { ColumnSpacing = 10 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var box = new PasswordBox { PlaceholderText = "Clé API ou jeton TMDB" };
+            row.Children.Add(box);
+            var connect = ActionButton(TmdbService.IsBusy ? "VÉRIFICATION…" : "CONNECTER", ghost: false,
+                () => _ = TmdbService.ConnectAsync(box.Password), enabled: !TmdbService.IsBusy);
+            Grid.SetColumn(connect, 1);
+            row.Children.Add(connect);
+            AddRow(card, row);
+        }
+        AddError(card, TmdbService.Error);
+        AddNote(card, "Traduit automatiquement les titres et résumés des fiches Cinemeta dans la langue choisie (clé gratuite sur themoviedb.org/settings/api).");
+        return card;
     }
 
     private FrameworkElement StremioCard()

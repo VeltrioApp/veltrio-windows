@@ -362,6 +362,68 @@ public sealed class OnboardingPage : Page
             addonCard.Children.Add(new TextBlock { Text = _addonError, FontSize = 12, Foreground = Res<Brush>("VeltrioDangerBrush") });
 
         _body.Children.Add(WrapCard(addonCard, accentBorder: false));
+
+        // Optional TMDB API key + metadata language
+        var tmdbCard = new StackPanel { Spacing = 10 };
+        tmdbCard.Children.Add(new TextBlock
+        {
+            Text = "Résumés et titres dans votre langue (TMDB)",
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Res<Brush>("VeltrioTextPrimaryBrush"),
+        });
+        tmdbCard.Children.Add(new TextBlock
+        {
+            Text = "Optionnel : ajoutez une clé API gratuite TMDB (themoviedb.org/settings/api) pour traduire les fiches Cinemeta.",
+            Style = Res<Style>("VeltrioBody"),
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        var langRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        foreach (var (code, label) in new[] { ("fr-FR", "FR"), ("en-US", "EN"), ("es-ES", "ES"), ("de-DE", "DE") })
+        {
+            var chip = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
+            {
+                Content = label,
+                IsChecked = TmdbService.Language == code,
+                Style = Res<Style>("VeltrioChip"),
+            };
+            var c = code;
+            chip.Click += (_, _) => { TmdbService.SetLanguage(c); Render(); };
+            langRow.Children.Add(chip);
+        }
+        tmdbCard.Children.Add(langRow);
+
+        if (TmdbService.IsConnected)
+        {
+            tmdbCard.Children.Add(new TextBlock { Text = "Clé TMDB connectée ✓", FontSize = 12, Foreground = Res<Brush>("VeltrioSuccessBrush") });
+        }
+        else
+        {
+            var tmdbRow = new Grid { ColumnSpacing = 12 };
+            tmdbRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            tmdbRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var keyBox = new PasswordBox { PlaceholderText = "Clé API ou jeton TMDB (optionnel)" };
+            Grid.SetColumn(keyBox, 0);
+            tmdbRow.Children.Add(keyBox);
+            var saveKeyBtn = new Button
+            {
+                Style = Res<Style>("VeltrioGhostButton"),
+                IsEnabled = !TmdbService.IsBusy,
+                Content = new TextBlock { Text = TmdbService.IsBusy ? "VÉRIFICATION…" : "ENREGISTRER" },
+            };
+            saveKeyBtn.Click += async (_, _) =>
+            {
+                await TmdbService.ConnectAsync(keyBox.Password);
+                Render();
+            };
+            Grid.SetColumn(saveKeyBtn, 1);
+            tmdbRow.Children.Add(saveKeyBtn);
+            tmdbCard.Children.Add(tmdbRow);
+        }
+        if (TmdbService.Error is not null)
+            tmdbCard.Children.Add(new TextBlock { Text = TmdbService.Error, FontSize = 12, Foreground = Res<Brush>("VeltrioDangerBrush") });
+        _body.Children.Add(WrapCard(tmdbCard, accentBorder: false));
     }
 
     private void RenderReady()

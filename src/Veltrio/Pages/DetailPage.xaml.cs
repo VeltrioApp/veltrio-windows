@@ -91,6 +91,7 @@ public sealed partial class DetailPage : Page
         SetImage(Backdrop, d.Background ?? d.Poster);
         Description.Text = d.Description ?? "";
         Description.Visibility = string.IsNullOrWhiteSpace(d.Description) ? Visibility.Collapsed : Visibility.Visible;
+        _ = LocalizeDetailsAsync(d.Id, d.Type);
 
         AddFact(Overview, "SORTIE", d.Year);
         AddFact(Overview, "DURÉE", d.Runtime);
@@ -114,6 +115,21 @@ public sealed partial class DetailPage : Page
             AddFact(Credits, "SCÉNARIO", d.Writer.Count > 0 ? string.Join(", ", d.Writer.Take(3)) : null);
             AddFact(Credits, "DISTRIBUTION", d.Cast.Count > 0 ? string.Join(", ", d.Cast.Take(6)) : null);
         }
+    }
+
+    private async Task LocalizeDetailsAsync(string id, string type)
+    {
+        var loc = await TmdbService.LocalizeAsync(id, type);
+        if (loc is null) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (loc.Title is not null) TitleText.Text = loc.Title;
+            if (loc.Overview is not null)
+            {
+                Description.Text = loc.Overview;
+                Description.Visibility = Visibility.Visible;
+            }
+        });
     }
 
     private static void AddFact(Panel panel, string label, string? value)
