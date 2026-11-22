@@ -369,7 +369,11 @@ public static class TmdbService
         {
             runtimeMin = r;
         }
-        var runtime = runtimeMin is > 0 ? $"{runtimeMin} min" : null;
+        var runtime = runtimeMin is > 0
+            ? (runtimeMin.Value >= 60
+                ? (runtimeMin.Value % 60 > 0 ? $"{runtimeMin.Value / 60} h {runtimeMin.Value % 60} min" : $"{runtimeMin.Value / 60} h")
+                : $"{runtimeMin.Value} min")
+            : null;
 
         var genres = new List<string>();
         if (root.TryGetProperty("genres", out var gArr) && gArr.ValueKind == JsonValueKind.Array)

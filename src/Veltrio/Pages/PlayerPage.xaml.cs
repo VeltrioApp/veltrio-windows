@@ -482,23 +482,67 @@ public sealed partial class PlayerPage : Page
 
     // -------------------- skip intro / next episode --------------------
 
-    private IntroService.IntroWindow? _introWindow;
+    private IntroService.IntroSegments? _introSegments;
+    private bool _outroOffered;
+    private DispatcherQueueTimer? _autoSkipTimer;
+    private string? _autoSkipKey;
 
     private async Task FetchIntroWindowAsync(string imdbId, int season, int episode)
     {
-        _introWindow = await IntroService.FetchIntroAsync(imdbId, season, episode);
+        _introSegments = await IntroService.FetchSegmentsAsync(imdbId, season, episode);
     }
 
     private double? EffectiveIntroEnd()
     {
-        if (_player is null) return null;
+        if (_player is null || _player.Position < 2.0) return null;
+        if (_introSegments?.Recap is { } r && _player.Position >= r.StartSec && _player.Position < r.EndSec - 1.0) return r.EndSec;
         if (_player.IntroEnd is { } end) return end;
-        if (_introWindow is { } w && _player.Position >= w.StartSec && _player.Position < w.EndSec) return w.EndSec;
+        if (_introSegments?.Intro is { } w && _player.Position >= w.StartSec && _player.Position < w.EndSec - 1.0) return w.EndSec;
         return null;
+    }
+
+    private void UpdateSkipAndOutro(Player.MpvPlayer p)
+    {
+        var skipEnd = EffectiveIntroEnd();
+        SkipIntroButton.Visibility = skipEnd is null ? Visibility.Collapsed : Visibility.Visible;
+        if (skipEnd is { } end)
+        {
+            var key = $"{(int)end}";
+            if (_autoSkipKey != key)
+            {
+                _autoSkipKey = key;
+                _autoSkipTimer?.Stop();
+                _autoSkipTimer = DispatcherQueue.CreateTimer();
+                _autoSkipTimer.Interval = TimeSpan.FromSeconds(5);
+                _autoSkipTimer.IsRepeating = false;
+                _autoSkipTimer.Tick += (_, _) =>
+                {
+                    if (EffectiveIntroEnd() is { } cur) _player?.SeekTo(cur);
+                };
+                _autoSkipTimer.Start();
+            }
+        }
+        else if (_autoSkipKey is not null)
+        {
+            _autoSkipKey = null;
+            _autoSkipTimer?.Stop();
+        }
+
+        if (!_outroOffered && _request.Next is not null && NextOverlay.Visibility != Visibility.Visible)
+        {
+            var inOutro = (_introSegments?.Outro is { } o && p.Position >= o.StartSec && p.Position < o.EndSec)
+                          || (p.Duration > 180 && p.Position > 0 && (p.Duration - p.Position) <= 45);
+            if (inOutro)
+            {
+                _outroOffered = true;
+                OfferNextEpisode();
+            }
+        }
     }
 
     private void SkipIntro()
     {
+        _autoSkipTimer?.Stop();
         if (EffectiveIntroEnd() is { } end) _player?.SeekTo(end);
     }
 
@@ -519,7 +563,7 @@ public sealed partial class PlayerPage : Page
             NextCountdown.Text = "";
             return;
         }
-        _nextCountdown = 10;
+        _nextCountdown = 5;
         NextCountdown.Text = $"Épisode suivant dans {_nextCountdown} s";
         _nextTimer = DispatcherQueue.CreateTimer();
         _nextTimer.Interval = TimeSpan.FromSeconds(1);
@@ -828,7 +872,7 @@ public sealed partial class PlayerPage : Page
                 RemainingText.Text = "-" + TimeLabelConverter.Format(Math.Max(0, p.Duration - p.Position));
                 TimePosition.Text = TimeLabelConverter.Format(p.Position);
                 TimeDuration.Text = TimeLabelConverter.Format(p.Duration);
-                SkipIntroButton.Visibility = EffectiveIntroEnd() is null ? Visibility.Collapsed : Visibility.Visible;
+                UpdateSkipAndOutro(p);
                 break;
             case "pause":
                 PlayPauseIcon.Glyph = p.IsPaused ? "\uE768" : "\uE769";
