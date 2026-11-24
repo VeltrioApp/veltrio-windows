@@ -66,10 +66,31 @@ public sealed partial class HomePage : Page
         }
         AddChip(AppPrefs.Tr("FILMS", "MOVIES"), _discoverType == "movie", () => _discoverType = "movie");
         AddChip(AppPrefs.Tr("SÉRIES", "SERIES"), _discoverType == "series", () => _discoverType = "series");
-        foreach (var (id, name) in TmdbService.DiscoverProviders)
+        foreach (var (id, name, logoUrl) in TmdbService.DiscoverProviders)
         {
             var pid = id;
-            AddChip(name.ToUpperInvariant(), _discoverProvider == pid, () => _discoverProvider = _discoverProvider == pid ? null : pid);
+            var selected = _discoverProvider == pid;
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+            if (Uri.TryCreate(logoUrl, UriKind.Absolute, out var uri))
+            {
+                row.Children.Add(new Border
+                {
+                    Width = 26,
+                    Height = 26,
+                    CornerRadius = new CornerRadius(5),
+                    Child = new Image { Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(uri), Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill },
+                });
+            }
+            row.Children.Add(new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            var btn = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
+            {
+                Content = row,
+                IsChecked = selected,
+                Style = chipStyle,
+                Padding = new Thickness(6, 4, 12, 4),
+            };
+            btn.Click += (_, _) => { _discoverProvider = _discoverProvider == pid ? null : pid; BuildDiscoverChips(); _ = LoadDiscoverAsync(); };
+            DiscoverChips.Children.Add(btn);
         }
         for (var i = 0; i < TmdbService.DiscoverGenres.Length; i++)
         {

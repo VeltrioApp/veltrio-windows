@@ -220,10 +220,14 @@ public static class TmdbService
         return true;
     }
 
-    public static readonly (int Id, string Name)[] DiscoverProviders =
+    public static readonly (int Id, string Name, string LogoUrl)[] DiscoverProviders =
     {
-        (8, "Netflix"), (350, "Apple TV+"), (337, "Disney+"),
-        (119, "Prime Video"), (1899, "Max"), (381, "Canal+"),
+        (8, "Netflix", "https://image.tmdb.org/t/p/w154/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg"),
+        (350, "Apple TV+", "https://image.tmdb.org/t/p/w154/2E03IAZsX4ZaUqM7tXlctEPMGWS.jpg"),
+        (337, "Disney+", "https://image.tmdb.org/t/p/w154/97yvRBw1GzX7fXprcF80er19ot.jpg"),
+        (119, "Prime Video", "https://image.tmdb.org/t/p/w154/pvske1MyAoymrs5bguRfVqYiM9a.jpg"),
+        (1899, "Max", "https://image.tmdb.org/t/p/w154/jbe4gVSfRlbPTdESXhEKpornsfu.jpg"),
+        (381, "Canal+", "https://image.tmdb.org/t/p/w154/eBXzkFEupZjKaIKY7zBUaSdCY8I.jpg"),
     };
 
     public static readonly (int MovieId, int TvId, string Fr, string En)[] DiscoverGenres =
