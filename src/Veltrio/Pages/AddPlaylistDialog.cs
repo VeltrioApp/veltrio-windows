@@ -70,7 +70,6 @@ public static class AddPlaylistDialog
             PrimaryButtonText = "Ajouter",
             CloseButtonText = "Annuler",
             DefaultButton = ContentDialogButton.Primary,
-            RequestedTheme = ElementTheme.Dark,
             Content = new ScrollViewer
             {
                 Content = new StackPanel { Spacing = 14, MinWidth = 440, Children = { chips, hint, name, m3uPanel, xtreamPanel, filePanel, error } },

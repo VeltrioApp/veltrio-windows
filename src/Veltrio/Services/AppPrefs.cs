@@ -18,7 +18,7 @@ public sealed class AppPrefs
     private static readonly string[] AdultGroupKeywords =
     {
         "adult", "xxx", "18+", "+18", "porn", "erotic", "érotique", "erotique",
-        "charme", "nsfw", "x-rated", "for adults", "adults only", "sex",
+        "charme", "nsfw", "x-rated", "for adults", "adults only",
     };
 
     public static bool IsAdultIptvGroup(string group)

@@ -34,8 +34,18 @@ public sealed partial class PlayerPage : Page
     public PlayerPage()
     {
         InitializeComponent();
-        AddAccelerator(Windows.System.VirtualKey.Escape, () => { if (Navigator.Window.IsFullScreen) ToggleFullScreen(); else Close(); });
+        AddAccelerator(Windows.System.VirtualKey.Escape, () =>
+        {
+            var kind = Navigator.Window.AppWindow?.Presenter?.Kind;
+            if (kind == Microsoft.UI.Windowing.AppWindowPresenterKind.CompactOverlay)
+                Navigator.Window.AppWindow?.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
+            else if (Navigator.Window.IsFullScreen)
+                ToggleFullScreen();
+            else
+                Close();
+        });
         AddAccelerator(Windows.System.VirtualKey.F, ToggleFullScreen);
+        AddAccelerator(Windows.System.VirtualKey.F11, ToggleFullScreen);
         AddAccelerator(Windows.System.VirtualKey.Space, () => _player?.TogglePause());
         AddAccelerator(Windows.System.VirtualKey.Left, () => _player?.SeekRelative(-10));
         AddAccelerator(Windows.System.VirtualKey.Right, () => _player?.SeekRelative(10));
@@ -71,7 +81,16 @@ public sealed partial class PlayerPage : Page
     private void AddAccelerator(Windows.System.VirtualKey key, Action action)
     {
         var accelerator = new KeyboardAccelerator { Key = key };
-        accelerator.Invoked += (_, e) => { action(); e.Handled = true; ShowChrome(); };
+        accelerator.Invoked += (_, e) =>
+        {
+            if (key != Windows.System.VirtualKey.Escape &&
+                XamlRoot is not null &&
+                FocusManager.GetFocusedElement(XamlRoot) is TextBox or PasswordBox or AutoSuggestBox)
+                return;
+            action();
+            e.Handled = true;
+            ShowChrome();
+        };
         KeyboardAccelerators.Add(accelerator);
     }
 
@@ -505,7 +524,7 @@ public sealed partial class PlayerPage : Page
     {
         var skipEnd = EffectiveIntroEnd();
         SkipIntroButton.Visibility = skipEnd is null ? Visibility.Collapsed : Visibility.Visible;
-        if (skipEnd is { } end)
+        if (skipEnd is { } end && !p.IsPaused)
         {
             var key = $"{(int)end}";
             if (_autoSkipKey != key)
@@ -517,7 +536,7 @@ public sealed partial class PlayerPage : Page
                 _autoSkipTimer.IsRepeating = false;
                 _autoSkipTimer.Tick += (_, _) =>
                 {
-                    if (EffectiveIntroEnd() is { } cur) _player?.SeekTo(cur);
+                    if (_player is not null && !_player.IsPaused && EffectiveIntroEnd() is { } cur) _player.SeekTo(cur);
                 };
                 _autoSkipTimer.Start();
             }
@@ -531,7 +550,7 @@ public sealed partial class PlayerPage : Page
         if (!_outroOffered && _request.Next is not null && NextOverlay.Visibility != Visibility.Visible)
         {
             var inOutro = (_introSegments?.Outro is { } o && p.Position >= o.StartSec && p.Position < o.EndSec)
-                          || (p.Duration > 180 && p.Position > 0 && (p.Duration - p.Position) <= 45);
+                          || (p.Duration > 180 && p.Position > 0 && (p.Duration - p.Position) <= 15);
             if (inOutro)
             {
                 _outroOffered = true;
@@ -910,7 +929,8 @@ public sealed partial class PlayerPage : Page
 
     private void BuildTrackMenus()
     {
-        var p = _player!;
+        if (_closing || _player is null) return;
+        var p = _player;
         AudioMenu.Items.Clear();
         foreach (var track in p.AudioTracks)
             AudioMenu.Items.Add(TrackItem(track.Label, track.Id == p.AudioId, "audio", () => p.SelectAudio(track.Id)));
@@ -1084,14 +1104,12 @@ public sealed partial class PlayerPage : Page
         FullScreenIcon.Glyph = on ? "\uE73F" : "\uE740";
     }
 
-    private bool _compactOverlay;
-
     private void OnTogglePip(object sender, RoutedEventArgs e)
     {
         var appWindow = Navigator.Window.AppWindow;
         if (appWindow is null) return;
-        _compactOverlay = !_compactOverlay;
-        if (_compactOverlay)
+        var isPip = appWindow.Presenter?.Kind == Microsoft.UI.Windowing.AppWindowPresenterKind.CompactOverlay;
+        if (!isPip)
         {
             Navigator.Window.SetFullScreen(false);
             appWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.CompactOverlay);
@@ -1110,11 +1128,8 @@ public sealed partial class PlayerPage : Page
     {
         if (_closing) return;
         _closing = true;
-        if (_compactOverlay)
-        {
-            _compactOverlay = false;
+        if (Navigator.Window.AppWindow?.Presenter?.Kind == Microsoft.UI.Windowing.AppWindowPresenterKind.CompactOverlay)
             Navigator.Window.AppWindow?.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
-        }
         Navigator.Back();
     }
 
@@ -1128,6 +1143,7 @@ public sealed partial class PlayerPage : Page
         _progressTimer?.Stop();
         _hideTimer?.Stop();
         _nextTimer?.Stop();
+        _autoSkipTimer?.Stop();
         _epgCardsTimer?.Stop();
         // The render context goes before the mpv core.
         _surface?.Dispose();

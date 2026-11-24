@@ -69,7 +69,8 @@ public sealed partial class DetailPage : Page
             StreamsPane.Visibility = Visibility.Collapsed;
             EpisodesPane.Visibility = Visibility.Visible;
             // Resume where the user was, else the first season.
-            var lastId = WatchStore.Entry(request.Type, request.Id)?.LastEpisodeId;
+            var lastId = WatchStore.Entry(request.Type, _details.Id)?.LastEpisodeId
+                         ?? WatchStore.Entry(request.Type, request.Id)?.LastEpisodeId;
             _episode = _details!.Episodes.FirstOrDefault(ep => ep.Id == lastId);
             BuildSeasonChips();
             ShowSeason(_episode?.Season ?? CurrentSeason);
@@ -197,7 +198,24 @@ public sealed partial class DetailPage : Page
         host.Children.Add(row);
     }
 
+    private bool _dialogOpen;
+
     private async Task ShowPersonFilmographyAsync(string personName)
+    {
+        if (_dialogOpen || XamlRoot is null) return;
+        _dialogOpen = true;
+        try
+        {
+            await ShowPersonFilmographyCoreAsync(personName);
+        }
+        catch { }
+        finally
+        {
+            _dialogOpen = false;
+        }
+    }
+
+    private async Task ShowPersonFilmographyCoreAsync(string personName)
     {
         var content = new StackPanel { Spacing = 12, MinWidth = 520 };
         var status = new TextBlock
@@ -331,17 +349,20 @@ public sealed partial class DetailPage : Page
         if (Uri.TryCreate(url, UriKind.Absolute, out var uri)) image.Source = new BitmapImage(uri);
     }
 
+    private string WatchId => _details?.Id ?? _request.Id;
+
     private void UpdateSaveButton()
     {
-        var saved = WatchStore.IsInLibrary(_request.Type, _request.Id);
+        var saved = WatchStore.IsInLibrary(_request.Type, WatchId)
+                    || (WatchId != _request.Id && WatchStore.IsInLibrary(_request.Type, _request.Id));
         SaveLabel.Text = saved ? "DANS LA COLLECTION" : "ENREGISTRER";
         SaveIcon.Glyph = saved ? "" : "";
-        SaveButton.Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[saved ? "VeltrioAccentBrush" : "VeltrioTextPrimaryBrush"];
+        SaveButton.Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[saved ? "VeltrioAccentTextBrush" : "VeltrioTextPrimaryBrush"];
     }
 
     private void OnToggleSave(object sender, RoutedEventArgs e)
     {
-        WatchStore.ToggleLibrary(_request.Type, _request.Id, _details?.Name ?? _request.Name,
+        WatchStore.ToggleLibrary(_request.Type, WatchId, _details?.Name ?? _request.Name,
             _details?.Poster ?? _request.Poster, _details?.Background ?? _request.Background, _details?.Addon ?? _request.Addon);
         UpdateSaveButton();
     }
@@ -374,7 +395,8 @@ public sealed partial class DetailPage : Page
         var episodes = _details!.Episodes.Where(ep => ep.Season == season).ToList();
         foreach (var ep in episodes)
         {
-            var progress = WatchStore.Episode(_request.Type, _request.Id, ep.Id);
+            var progress = WatchStore.Episode(_request.Type, WatchId, ep.Id)
+                           ?? WatchStore.Episode(_request.Type, _request.Id, ep.Id);
             ep.Progress = progress is { Duration: > 0 } p ? Math.Clamp(p.Position / p.Duration * 100, 0, 100) : 0;
             ep.Watched = progress?.Watched == true;
         }
@@ -552,7 +574,7 @@ public sealed partial class DetailPage : Page
             var any = Visible().Any();
             PlayLabel.Text = !any ? "AUCUN FLUX"
                 : _episode is not null ? $"LIRE {_episode.Code.Replace(" · ", "")}"
-                : WatchStore.ResumePosition(_request.Type, _request.Id) > 0 ? "REPRENDRE" : "REGARDER";
+                : (WatchStore.ResumePosition(_request.Type, WatchId) > 0 || WatchStore.ResumePosition(_request.Type, _request.Id) > 0) ? "REPRENDRE" : "REGARDER";
             PlayButton.IsEnabled = any;
         }
     }

@@ -136,9 +136,11 @@ public sealed partial class LivePage : Page
             _ => $"DIRECT · {_items.Count} CHAÎNES",
         };
         _populating = true;
-        var groups = _items.GroupBy(i => i.Group).Select(g => $"{g.Key}  ({g.Count()})").ToList();
+        var visibleGroups = VisibleGroups();
+        var visibleCount = visibleGroups.Sum(g => g.Count());
+        var groups = visibleGroups.Select(g => $"{g.Key}  ({g.Count()})").ToList();
         var all = _kind switch { ChannelKind.Movie => "Tous les films", ChannelKind.Series => "Toutes les séries", _ => AllGroups };
-        GroupPicker.ItemsSource = new[] { $"{all}  ({_items.Count})" }.Concat(groups).ToList();
+        GroupPicker.ItemsSource = new[] { $"{all}  ({visibleCount})" }.Concat(groups).ToList();
         GroupPicker.SelectedIndex = 0;
         _populating = false;
         if (_kind == ChannelKind.Live) _ = EpgStore.LoadAsync(playlist, _items);
@@ -216,7 +218,7 @@ public sealed partial class LivePage : Page
         }
         var text = Filter.Text.Trim();
         Message.Text = text.Length > 0 ? $"Rien ne correspond à « {text} »." : "Rien dans ce groupe.";
-        Message.Visibility = visible.Count == 0 && !Loading.IsActive && _items.Count > 0 ? Visibility.Visible : Message.Visibility;
+        Message.Visibility = visible.Count == 0 && !Loading.IsActive && _items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         ShowView();
     }
 

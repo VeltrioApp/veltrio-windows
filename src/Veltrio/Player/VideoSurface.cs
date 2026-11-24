@@ -67,6 +67,7 @@ public sealed unsafe class VideoSurface : IDisposable
 
     private void UpdateSize()
     {
+        if (_panel.ActualWidth < 1 || _panel.ActualHeight < 1) return;
         _scaleX = _panel.CompositionScaleX;
         _scaleY = _panel.CompositionScaleY;
         _wantWidth = Math.Max(16, (int)Math.Round(_panel.ActualWidth * _scaleX));
@@ -106,7 +107,11 @@ public sealed unsafe class VideoSurface : IDisposable
                 }
                 if (_surface == IntPtr.Zero || _target is null) continue;
                 var flags = LibMpv.RenderContextUpdate(_renderContext);
-                if ((flags & LibMpv.RenderUpdateFrame) != 0) RenderFrame();
+                if ((flags & LibMpv.RenderUpdateFrame) != 0)
+                {
+                    try { RenderFrame(); }
+                    catch (Exception ex) { PlayerLog.Write($"[video] render error: {ex.Message}"); }
+                }
             }
         }
         catch (Exception ex)

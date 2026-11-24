@@ -76,7 +76,9 @@ public static class SubtitleFetcher
         {
             var synonyms = Player.MediaTrack.Synonyms(code);
             if (list.FirstOrDefault(s => synonyms.Contains((s.Lang ?? "").ToLowerInvariant())) is { } exact) return exact;
-            if (list.FirstOrDefault(s => synonyms.Any(c => (s.Lang ?? "").ToLowerInvariant().StartsWith(c))) is { } prefix) return prefix;
+            if (list.FirstOrDefault(s => synonyms.Any(c =>
+                    (s.Lang ?? "").StartsWith(c + "-", StringComparison.OrdinalIgnoreCase) ||
+                    (s.Lang ?? "").StartsWith(c + "_", StringComparison.OrdinalIgnoreCase))) is { } prefix) return prefix;
         }
         return null;
     }

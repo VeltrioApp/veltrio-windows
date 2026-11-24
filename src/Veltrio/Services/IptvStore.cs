@@ -182,15 +182,20 @@ public static class IptvStore
     /// provider's server (as on macOS).</summary>
     public static async Task<IReadOnlyList<ChannelItem>> SearchAsync(string query)
     {
+        var kids = AppPrefs.Current.KidsMode;
         var perSource = await Task.WhenAll(_playlists.Select(async p =>
         {
             var found = new List<ChannelItem>();
             try
             {
-                found.AddRange((await ItemsAsync(p)).Where(c => XtreamClient.TitleMatches(c.Name, query)).Take(40));
+                found.AddRange((await ItemsAsync(p))
+                    .Where(c => (!kids || !AppPrefs.IsAdultIptvGroup(c.Group)) && XtreamClient.TitleMatches(c.Name, query))
+                    .Take(40));
                 if (p.Xtream is { } account)
                 {
-                    var vod = await XtreamClient.SearchAsync(account, query);
+                    var vod = (await XtreamClient.SearchAsync(account, query))
+                        .Where(c => !kids || !AppPrefs.IsAdultIptvGroup(c.Group))
+                        .ToList();
                     // Keep the session's lists consistent: same objects for PlaylistOf.
                     _searchHits[p.Id] = vod;
                     found.AddRange(vod);

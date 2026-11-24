@@ -167,7 +167,7 @@ public sealed partial class MainWindow : Window
         var chrome = fullWindow ? Visibility.Collapsed : Visibility.Visible;
         NavBar.Visibility = NavRule.Visibility = chrome;
         TitleBar.Visibility = e.SourcePageType == typeof(PlayerPage) ? Visibility.Collapsed : Visibility.Visible;
-        if (chrome == Visibility.Visible && AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen)
+        if (chrome == Visibility.Visible && AppWindow.Presenter.Kind != AppWindowPresenterKind.Default)
             AppWindow.SetPresenter(AppWindowPresenterKind.Default);
 
         var section = Array.FindIndex(Sections, s => s.Page == e.SourcePageType);

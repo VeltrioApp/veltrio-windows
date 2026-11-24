@@ -223,7 +223,7 @@ public sealed partial class SettingsPage : Page
             Text = AppPrefs.Tr("CONTRÔLE PARENTAL", "PARENTAL CONTROL"),
             FontSize = 11,
             CharacterSpacing = 140,
-            Foreground = Res<Microsoft.UI.Xaml.Media.Brush>("VeltrioAccentBrush"),
+            Foreground = Res<Microsoft.UI.Xaml.Media.Brush>("VeltrioAccentTextBrush"),
         });
         ParentalHost.Children.Add(new TextBlock
         {
@@ -261,96 +261,99 @@ public sealed partial class SettingsPage : Page
         };
         ParentalHost.Children.Add(toggle);
 
-        var pinRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var pinBox = new PasswordBox
+        if (_unlockingKidsPin || !prefs.KidsMode || string.IsNullOrEmpty(prefs.KidsPin))
         {
-            Width = 150,
-            MaxLength = 4,
-            PlaceholderText = _unlockingKidsPin
-                ? AppPrefs.Tr("Code PIN", "PIN code")
-                : (string.IsNullOrEmpty(prefs.KidsPin)
-                    ? AppPrefs.Tr("PIN (4 chiffres)", "4-digit PIN")
-                    : AppPrefs.Tr("PIN actif (••••)", "PIN active (••••)")),
-        };
-        pinRow.Children.Add(pinBox);
-
-        if (_unlockingKidsPin)
-        {
-            var unlockBtn = new Button
+            var pinRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            var pinBox = new PasswordBox
             {
-                Content = AppPrefs.Tr("DÉVERROUILLER", "UNLOCK"),
-                Style = Res<Style>("VeltrioPrimaryButton"),
+                Width = 150,
+                MaxLength = 4,
+                PlaceholderText = _unlockingKidsPin
+                    ? AppPrefs.Tr("Code PIN", "PIN code")
+                    : (string.IsNullOrEmpty(prefs.KidsPin)
+                        ? AppPrefs.Tr("PIN (4 chiffres)", "4-digit PIN")
+                        : AppPrefs.Tr("PIN actif (••••)", "PIN active (••••)")),
             };
-            unlockBtn.Click += (_, _) =>
+            pinRow.Children.Add(pinBox);
+
+            if (_unlockingKidsPin)
             {
-                if (pinBox.Password == prefs.KidsPin)
+                var unlockBtn = new Button
+                {
+                    Content = AppPrefs.Tr("DÉVERROUILLER", "UNLOCK"),
+                    Style = Res<Style>("VeltrioPrimaryButton"),
+                };
+                unlockBtn.Click += (_, _) =>
+                {
+                    if (pinBox.Password == prefs.KidsPin)
+                    {
+                        _unlockingKidsPin = false;
+                        _kidsPinError = null;
+                        AppPrefs.SetKidsMode(false);
+                    }
+                    else
+                    {
+                        _kidsPinError = AppPrefs.Tr("Code PIN incorrect.", "Incorrect PIN.");
+                    }
+                    BuildParentalControl();
+                };
+                var cancelBtn = new Button
+                {
+                    Content = AppPrefs.Tr("ANNULER", "CANCEL"),
+                    Style = Res<Style>("VeltrioGhostButton"),
+                };
+                cancelBtn.Click += (_, _) =>
                 {
                     _unlockingKidsPin = false;
                     _kidsPinError = null;
-                    AppPrefs.SetKidsMode(false);
-                }
-                else
-                {
-                    _kidsPinError = AppPrefs.Tr("Code PIN incorrect.", "Incorrect PIN.");
-                }
-                BuildParentalControl();
-            };
-            var cancelBtn = new Button
-            {
-                Content = AppPrefs.Tr("ANNULER", "CANCEL"),
-                Style = Res<Style>("VeltrioGhostButton"),
-            };
-            cancelBtn.Click += (_, _) =>
-            {
-                _unlockingKidsPin = false;
-                _kidsPinError = null;
-                BuildParentalControl();
-            };
-            pinRow.Children.Add(unlockBtn);
-            pinRow.Children.Add(cancelBtn);
-        }
-        else
-        {
-            var setBtn = new Button
-            {
-                Content = AppPrefs.Tr("DÉFINIR LE PIN", "SET PIN"),
-                Style = Res<Style>("VeltrioGhostButton"),
-            };
-            setBtn.Click += (_, _) =>
-            {
-                var digits = new string(pinBox.Password.Where(char.IsDigit).ToArray());
-                if (digits.Length == 4)
-                {
-                    prefs.KidsPin = digits;
-                    prefs.Save();
-                    _kidsPinError = null;
-                }
-                else
-                {
-                    _kidsPinError = AppPrefs.Tr("Saisissez 4 chiffres.", "Enter 4 digits.");
-                }
-                BuildParentalControl();
-            };
-            pinRow.Children.Add(setBtn);
-
-            if (!string.IsNullOrEmpty(prefs.KidsPin) && !prefs.KidsMode)
-            {
-                var clearBtn = new Button
-                {
-                    Content = AppPrefs.Tr("RETIRER", "REMOVE"),
-                    Style = Res<Style>("VeltrioGhostButton"),
-                };
-                clearBtn.Click += (_, _) =>
-                {
-                    prefs.KidsPin = "";
-                    prefs.Save();
-                    _kidsPinError = null;
                     BuildParentalControl();
                 };
-                pinRow.Children.Add(clearBtn);
+                pinRow.Children.Add(unlockBtn);
+                pinRow.Children.Add(cancelBtn);
             }
+            else
+            {
+                var setBtn = new Button
+                {
+                    Content = AppPrefs.Tr("DÉFINIR LE PIN", "SET PIN"),
+                    Style = Res<Style>("VeltrioGhostButton"),
+                };
+                setBtn.Click += (_, _) =>
+                {
+                    var digits = new string(pinBox.Password.Where(char.IsDigit).ToArray());
+                    if (digits.Length == 4)
+                    {
+                        prefs.KidsPin = digits;
+                        prefs.Save();
+                        _kidsPinError = null;
+                    }
+                    else
+                    {
+                        _kidsPinError = AppPrefs.Tr("Saisissez 4 chiffres.", "Enter 4 digits.");
+                    }
+                    BuildParentalControl();
+                };
+                pinRow.Children.Add(setBtn);
+
+                if (!string.IsNullOrEmpty(prefs.KidsPin) && !prefs.KidsMode)
+                {
+                    var clearBtn = new Button
+                    {
+                        Content = AppPrefs.Tr("RETIRER", "REMOVE"),
+                        Style = Res<Style>("VeltrioGhostButton"),
+                    };
+                    clearBtn.Click += (_, _) =>
+                    {
+                        prefs.KidsPin = "";
+                        prefs.Save();
+                        _kidsPinError = null;
+                        BuildParentalControl();
+                    };
+                    pinRow.Children.Add(clearBtn);
+                }
+            }
+            ParentalHost.Children.Add(pinRow);
         }
-        ParentalHost.Children.Add(pinRow);
 
         if (!string.IsNullOrEmpty(_kidsPinError))
         {
