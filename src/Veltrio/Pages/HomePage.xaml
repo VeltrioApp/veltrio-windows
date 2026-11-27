@@ -91,15 +91,10 @@
             </Grid>
 
             <StackPanel x:Name="RowsPanel" Padding="48,40,0,0" Spacing="52">
-                <!-- TMDB Discover filter bar (providers + genres). -->
-                <StackPanel x:Name="DiscoverSection" Spacing="14" Visibility="Collapsed" Padding="0,0,48,0">
-                    <ScrollViewer HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled">
-                        <StackPanel x:Name="DiscoverChips" Orientation="Horizontal" Spacing="8" />
-                    </ScrollViewer>
-                    <ProgressRing x:Name="DiscoverLoading" IsActive="False" Width="20" Height="20" HorizontalAlignment="Left" Visibility="Collapsed" />
-                    <ScrollViewer x:Name="DiscoverResultsScroll" Visibility="Collapsed" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled">
-                        <StackPanel x:Name="DiscoverResultsRow" Orientation="Horizontal" Spacing="14" />
-                    </ScrollViewer>
+                <!-- TMDB Platform & Genre Hub cards (full-width rows). -->
+                <StackPanel x:Name="DiscoverSection" Spacing="12" Visibility="Collapsed" Padding="0,0,48,0">
+                    <Grid x:Name="ProviderCardsGrid" ColumnSpacing="12" />
+                    <Grid x:Name="GenreCardsGrid" ColumnSpacing="10" />
                 </StackPanel>
 
                 <!-- 01 — Continue watching, when something is in progress. -->

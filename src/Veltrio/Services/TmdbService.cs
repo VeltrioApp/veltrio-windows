@@ -220,29 +220,35 @@ public static class TmdbService
         return true;
     }
 
-    public static readonly (int Id, string Name, string LogoUrl)[] DiscoverProviders =
+    public static readonly (int Id, string Name, string LogoUrl, uint ColorArgb)[] DiscoverProviders =
     {
-        (8, "Netflix", "https://image.tmdb.org/t/p/w154/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg"),
-        (350, "Apple TV+", "https://image.tmdb.org/t/p/w154/2E03IAZsX4ZaUqM7tXlctEPMGWS.jpg"),
-        (337, "Disney+", "https://image.tmdb.org/t/p/w154/97yvRBw1GzX7fXprcF80er19ot.jpg"),
-        (119, "Prime Video", "https://image.tmdb.org/t/p/w154/pvske1MyAoymrs5bguRfVqYiM9a.jpg"),
-        (1899, "Max", "https://image.tmdb.org/t/p/w154/jbe4gVSfRlbPTdESXhEKpornsfu.jpg"),
-        (381, "Canal+", "https://image.tmdb.org/t/p/w154/eBXzkFEupZjKaIKY7zBUaSdCY8I.jpg"),
+        (8, "Netflix", "https://image.tmdb.org/t/p/w154/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg", 0xFFE50914),
+        (350, "Apple TV+", "https://image.tmdb.org/t/p/w154/2E03IAZsX4ZaUqM7tXlctEPMGWS.jpg", 0xFF3A3A3C),
+        (337, "Disney+", "https://image.tmdb.org/t/p/w154/97yvRBw1GzX7fXprcF80er19ot.jpg", 0xFF113CCF),
+        (119, "Prime Video", "https://image.tmdb.org/t/p/w154/pvske1MyAoymrs5bguRfVqYiM9a.jpg", 0xFF00A8E1),
+        (1899, "Max", "https://image.tmdb.org/t/p/w154/jbe4gVSfRlbPTdESXhEKpornsfu.jpg", 0xFF002BE7),
+        (381, "Canal+", "https://image.tmdb.org/t/p/w154/eBXzkFEupZjKaIKY7zBUaSdCY8I.jpg", 0xFF2C2C2E),
     };
 
-    public static readonly (int MovieId, int TvId, string Fr, string En)[] DiscoverGenres =
+    public static readonly (int MovieId, int TvId, string Fr, string En, uint ColorArgb)[] DiscoverGenres =
     {
-        (28, 10759, "Action", "Action"),
-        (878, 10765, "Sci-Fi", "Sci-Fi"),
-        (35, 35, "Comédie", "Comedy"),
-        (18, 18, "Drame", "Drama"),
-        (53, 9648, "Thriller", "Thriller"),
-        (16, 16, "Animation", "Animation"),
-        (27, 9648, "Horreur", "Horror"),
-        (99, 99, "Documentaire", "Documentary"),
+        (28, 10759, "Action", "Action", 0xFFD9381E),
+        (878, 10765, "Sci-Fi", "Sci-Fi", 0xFF0E7490),
+        (35, 35, "Comédie", "Comedy", 0xFFD97706),
+        (18, 18, "Drame", "Drama", 0xFF6D28D9),
+        (53, 9648, "Thriller", "Thriller", 0xFF374151),
+        (16, 16, "Animation", "Animation", 0xFFDB2777),
+        (27, 9648, "Horreur", "Horror", 0xFF991B1B),
+        (99, 99, "Documentaire", "Documentary", 0xFF047857),
     };
 
-    public static async Task<IReadOnlyList<PosterItem>> DiscoverAsync(string type, int? genreId = null, int? providerId = null, int page = 1)
+    public static async Task<IReadOnlyList<PosterItem>> DiscoverAsync(
+        string type,
+        int? genreId = null,
+        int? providerId = null,
+        int page = 1,
+        string sortBy = "popularity.desc",
+        int? minVotes = null)
     {
         var key = SecretStore.Get(KeySecret)?.Trim();
         if (string.IsNullOrEmpty(key)) return Array.Empty<PosterItem>();
@@ -252,7 +258,8 @@ public static class TmdbService
         var isSeries = string.Equals(type, "series", StringComparison.OrdinalIgnoreCase);
         var endpoint = isSeries ? "tv" : "movie";
         var kids = AppPrefs.Current.KidsMode;
-        var q = new List<string> { $"language={lang}", "sort_by=popularity.desc", "include_adult=false", $"page={page}" };
+        var q = new List<string> { $"language={lang}", $"sort_by={sortBy}", "include_adult=false", $"page={page}" };
+        if (minVotes is { } mv && mv > 0) q.Add($"vote_count.gte={mv}");
         if (kids)
         {
             q.Add("with_genres=10751|16");

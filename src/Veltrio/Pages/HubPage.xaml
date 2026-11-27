@@ -1,0 +1,33 @@
+<Page
+    x:Class="Veltrio.Pages.HubPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Veltrio.Pages">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="0" Padding="0,0,0,64">
+            <Grid x:Name="HeaderBand" Padding="48,28,48,32">
+                <StackPanel Spacing="14">
+                    <Button Style="{StaticResource VeltrioLinkButton}" Click="OnBack" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE72B;" FontSize="9" />
+                            <TextBlock x:Name="BackLabel" Text="RETOUR" />
+                        </StackPanel>
+                    </Button>
+                    <StackPanel Orientation="Horizontal" Spacing="18" VerticalAlignment="Center" Margin="0,6,0,0">
+                        <Border x:Name="LogoFrame" Width="64" Height="64" CornerRadius="14" Visibility="Collapsed"
+                                BorderBrush="#28FFFFFF" BorderThickness="1">
+                            <Image x:Name="LogoImage" Stretch="UniformToFill" />
+                        </Border>
+                        <StackPanel Spacing="4" VerticalAlignment="Center">
+                            <TextBlock x:Name="EyebrowText" Style="{StaticResource VeltrioAccentEyebrow}" />
+                            <TextBlock x:Name="TitleText" Style="{StaticResource VeltrioPageTitle}" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+
+            <StackPanel x:Name="RowsContainer" Padding="48,12,0,0" Spacing="40" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

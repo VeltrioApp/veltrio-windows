@@ -1,8 +1,10 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
 using Veltrio.Services;
+using Windows.UI;
 
 namespace Veltrio.Pages;
 
@@ -12,9 +14,6 @@ public sealed partial class HomePage : Page
 {
     private PosterItem? _hero;
     private bool _stale = true;
-    private string _discoverType = "movie";
-    private int? _discoverProvider;
-    private int? _discoverGenreIndex;
 
     public HomePage()
     {
@@ -49,114 +48,122 @@ public sealed partial class HomePage : Page
         EmptyState.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         RowsPanel.Visibility = rows.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         DiscoverSection.Visibility = TmdbService.IsConnected ? Visibility.Visible : Visibility.Collapsed;
-        if (TmdbService.IsConnected) BuildDiscoverChips();
+        if (TmdbService.IsConnected) BuildHubCards();
         Rows.ItemsSource = rows;
         foreach (var row in rows) _ = LoadRowAsync(row);
     }
 
-    private void BuildDiscoverChips()
+    private void BuildHubCards()
     {
-        DiscoverChips.Children.Clear();
-        var chipStyle = (Style)Application.Current.Resources["VeltrioChip"];
-        void AddChip(string label, bool selected, Action onClick)
+        ProviderCardsGrid.Children.Clear();
+        ProviderCardsGrid.ColumnDefinitions.Clear();
+        var providers = TmdbService.DiscoverProviders;
+        for (var i = 0; i < providers.Length; i++)
         {
-            var c = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton { Content = label, IsChecked = selected, Style = chipStyle };
-            c.Click += (_, _) => { onClick(); BuildDiscoverChips(); _ = LoadDiscoverAsync(); };
-            DiscoverChips.Children.Add(c);
-        }
-        AddChip(AppPrefs.Tr("FILMS", "MOVIES"), _discoverType == "movie", () => _discoverType = "movie");
-        AddChip(AppPrefs.Tr("SÉRIES", "SERIES"), _discoverType == "series", () => _discoverType = "series");
-        foreach (var (id, name, logoUrl) in TmdbService.DiscoverProviders)
-        {
-            var pid = id;
-            var selected = _discoverProvider == pid;
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+            ProviderCardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var (id, name, logoUrl, colorArgb) = providers[i];
+            var brand = FromArgb(colorArgb);
+            var grad = new LinearGradientBrush
+            {
+                StartPoint = new Windows.Foundation.Point(0, 0),
+                EndPoint = new Windows.Foundation.Point(1, 1),
+            };
+            grad.GradientStops.Add(new GradientStop { Color = Color.FromArgb(72, brand.R, brand.G, brand.B), Offset = 0 });
+            grad.GradientStops.Add(new GradientStop { Color = Color.FromArgb(24, brand.R, brand.G, brand.B), Offset = 1 });
+
+            var stack = new StackPanel
+            {
+                Spacing = 8,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
             if (Uri.TryCreate(logoUrl, UriKind.Absolute, out var uri))
             {
-                row.Children.Add(new Border
+                stack.Children.Add(new Border
                 {
-                    Width = 26,
-                    Height = 26,
-                    CornerRadius = new CornerRadius(5),
-                    Child = new Image { Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(uri), Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill },
+                    Width = 44,
+                    Height = 44,
+                    CornerRadius = new CornerRadius(10),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Child = new Image { Source = new BitmapImage(uri), Stretch = Stretch.UniformToFill },
                 });
             }
-            row.Children.Add(new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            var btn = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
+            stack.Children.Add(new TextBlock
             {
-                Content = row,
-                IsChecked = selected,
-                Style = chipStyle,
-                Padding = new Thickness(6, 4, 12, 4),
-            };
-            btn.Click += (_, _) => { _discoverProvider = _discoverProvider == pid ? null : pid; BuildDiscoverChips(); _ = LoadDiscoverAsync(); };
-            DiscoverChips.Children.Add(btn);
-        }
-        for (var i = 0; i < TmdbService.DiscoverGenres.Length; i++)
-        {
-            var idx = i;
-            var g = TmdbService.DiscoverGenres[i];
-            AddChip(AppPrefs.Tr(g.Fr, g.En).ToUpperInvariant(), _discoverGenreIndex == idx, () => _discoverGenreIndex = _discoverGenreIndex == idx ? null : idx);
-        }
-        if (_discoverProvider is not null || _discoverGenreIndex is not null)
-            AddChip(AppPrefs.Tr("EFFACER", "CLEAR"), false, () => { _discoverProvider = null; _discoverGenreIndex = null; });
-    }
-
-    private async Task LoadDiscoverAsync()
-    {
-        var active = _discoverProvider is not null || _discoverGenreIndex is not null;
-        if (!active)
-        {
-            DiscoverLoading.IsActive = false;
-            DiscoverLoading.Visibility = Visibility.Collapsed;
-            DiscoverResultsScroll.Visibility = Visibility.Collapsed;
-            DiscoverResultsRow.Children.Clear();
-            return;
-        }
-        DiscoverLoading.IsActive = true;
-        DiscoverLoading.Visibility = Visibility.Visible;
-        DiscoverResultsScroll.Visibility = Visibility.Collapsed;
-        int? gid = _discoverGenreIndex is { } gi
-            ? (_discoverType == "series" ? TmdbService.DiscoverGenres[gi].TvId : TmdbService.DiscoverGenres[gi].MovieId)
-            : null;
-        var items = await TmdbService.DiscoverAsync(_discoverType, gid, _discoverProvider);
-        DiscoverLoading.IsActive = false;
-        DiscoverLoading.Visibility = Visibility.Collapsed;
-        DiscoverResultsRow.Children.Clear();
-        foreach (var item in items)
-        {
-            var card = new StackPanel { Width = 140, Spacing = 6 };
-            var box = new Grid
-            {
-                Height = 210,
-                Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioSurfaceBrush"],
-                BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioBorderBrush"],
-                BorderThickness = new Thickness(1),
-            };
-            if (Uri.TryCreate(item.PosterUrl, UriKind.Absolute, out var uri))
-                box.Children.Add(new Image { Source = new BitmapImage(uri), Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill });
-            card.Children.Add(box);
-            card.Children.Add(new TextBlock
-            {
-                Text = item.Title,
-                FontSize = 12,
-                MaxLines = 2,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["VeltrioTextPrimaryBrush"],
+                Text = name,
+                FontSize = 13,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = (Brush)Application.Current.Resources["VeltrioTextPrimaryBrush"],
             });
+
             var btn = new Button
             {
-                Style = (Style)Application.Current.Resources["VeltrioLinkButton"],
-                Padding = new Thickness(0),
-                Content = card,
+                Content = stack,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Height = 96,
+                CornerRadius = new CornerRadius(12),
+                Background = grad,
+                BorderBrush = new SolidColorBrush(Color.FromArgb(90, brand.R, brand.G, brand.B)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8),
             };
-            var target = item;
-            btn.Click += (_, _) => Navigator.OpenTitle(target);
-            DiscoverResultsRow.Children.Add(btn);
+            var req = new HubRequest(AppPrefs.Tr("Plateforme", "Platform"), name, colorArgb, logoUrl, id, null, null);
+            btn.Click += (_, _) => Frame?.Navigate(typeof(HubPage), req);
+            Grid.SetColumn(btn, i);
+            ProviderCardsGrid.Children.Add(btn);
         }
-        DiscoverResultsScroll.Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        GenreCardsGrid.Children.Clear();
+        GenreCardsGrid.ColumnDefinitions.Clear();
+        var genres = TmdbService.DiscoverGenres;
+        for (var i = 0; i < genres.Length; i++)
+        {
+            GenreCardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var (movieId, tvId, fr, en, colorArgb) = genres[i];
+            var label = AppPrefs.Tr(fr, en);
+            var brand = FromArgb(colorArgb);
+            var grad = new LinearGradientBrush
+            {
+                StartPoint = new Windows.Foundation.Point(0, 0),
+                EndPoint = new Windows.Foundation.Point(1, 0),
+            };
+            grad.GradientStops.Add(new GradientStop { Color = Color.FromArgb(80, brand.R, brand.G, brand.B), Offset = 0 });
+            grad.GradientStops.Add(new GradientStop { Color = Color.FromArgb(24, brand.R, brand.G, brand.B), Offset = 1 });
+
+            var btn = new Button
+            {
+                Content = new TextBlock
+                {
+                    Text = label,
+                    FontSize = 13,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    Foreground = (Brush)Application.Current.Resources["VeltrioTextPrimaryBrush"],
+                },
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Height = 46,
+                CornerRadius = new CornerRadius(10),
+                Background = grad,
+                BorderBrush = new SolidColorBrush(Color.FromArgb(80, brand.R, brand.G, brand.B)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 4, 8, 4),
+            };
+            var req = new HubRequest(AppPrefs.Tr("Genre", "Genre"), label, colorArgb, null, null, movieId, tvId);
+            btn.Click += (_, _) => Frame?.Navigate(typeof(HubPage), req);
+            Grid.SetColumn(btn, i);
+            GenreCardsGrid.Children.Add(btn);
+        }
     }
+
+    private static Color FromArgb(uint argb) => Color.FromArgb(
+        (byte)((argb >> 24) & 0xFF),
+        (byte)((argb >> 16) & 0xFF),
+        (byte)((argb >> 8) & 0xFF),
+        (byte)(argb & 0xFF));
 
     private async Task LoadRowAsync(HomeRow row)
     {
