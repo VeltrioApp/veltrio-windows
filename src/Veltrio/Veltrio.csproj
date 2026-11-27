@@ -24,7 +24,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- Generated bindings trip nullable and naming analyzers. -->
     <NoWarn>$(NoWarn);CS8618;CS8625;CS8603;CS0108;CS1591</NoWarn>
-    <Version>0.1.0</Version>
+    <Version>1.0.0</Version>
     <!-- Program.cs is the entry point, so Velopack runs before XAML starts. -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
